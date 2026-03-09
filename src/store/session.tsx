@@ -119,7 +119,9 @@ export function SessionProvider({ children }: PropsWithChildren) {
     const nextTenants = await bootstrapTenants(nextToken, nextUser);
     const hasPreferredTenant = nextTenants.some((tenant) => tenant.id === preferredTenantId);
     const nextSelectedTenantId = hasPreferredTenant ? preferredTenantId : null;
-    const nextProfile = await getCurrentUserProfile(nextToken, nextSelectedTenantId);
+    const nextProfile = nextSelectedTenantId
+      ? await getCurrentUserProfile(nextToken, nextSelectedTenantId)
+      : null;
 
     return {
       profile: nextProfile,

@@ -59,6 +59,18 @@ export interface WatchlistItem {
   type: string;
 }
 
+export type WatchlistItemType = 'Company' | 'Person' | 'Sector';
+export type WatchlistWindow = '1d' | '7d' | 'm' | 'all';
+
+export interface WatchlistCreateInput {
+  ceid?: string;
+  entity: string;
+  filters?: string | null;
+  gl?: string;
+  hl?: string;
+  type: WatchlistItemType;
+}
+
 export interface WatchlistResponse {
   items: WatchlistItem[];
   total: number;
@@ -83,6 +95,22 @@ export interface WatchlistFetchResponse {
   articles: Article[];
   total: number;
   watchlist_size: number;
+}
+
+export interface NewsSearchInput {
+  ceid?: string;
+  entity: string;
+  filters?: string | null;
+  gl?: string;
+  hl?: string;
+  type: WatchlistItemType;
+  when?: WatchlistWindow;
+}
+
+export interface NewsSearchResponse {
+  articles: Article[];
+  query: string;
+  total: number;
 }
 
 export interface ArticleStatsResponse {
@@ -116,8 +144,75 @@ export interface AnalyzeArticleResponse {
   title: string;
 }
 
+export interface AISynthesizeInput {
+  articles: Article[];
+  limit?: number;
+  when?: WatchlistWindow;
+}
+
+export interface AISynthesizeResponse {
+  articles_analyzed: number;
+  report: Record<string, unknown>;
+}
+
 export interface SessionCapabilities {
   accessRole: AccessRole | null;
   canCreateTenant: boolean;
   canManageTenantUsers: boolean;
+}
+
+export type AlertChannel = 'in_app' | 'email' | 'sms';
+export type AlertSentiment = 'any' | 'positive' | 'neutral' | 'negative';
+export type EntityType = 'company' | 'market' | 'person';
+
+export interface AlertPublic {
+  channel: AlertChannel;
+  created_at: string;
+  entity_id: string | null;
+  entity_name: string | null;
+  id: string;
+  is_active: boolean;
+  min_importance: number | null;
+  sentiment: AlertSentiment;
+  tenant_id: string;
+  user_id: string;
+}
+
+export interface AlertsListResponse {
+  items: AlertPublic[];
+  total: number;
+}
+
+export interface AlertCreateInput {
+  channel: AlertChannel;
+  entity_id?: string | null;
+  entity_name?: string | null;
+  entity_type: EntityType;
+  is_active: boolean;
+  min_importance?: number | null;
+  sentiment: AlertSentiment;
+}
+
+export interface AlertUpdateInput {
+  channel?: AlertChannel | null;
+  entity_id?: string | null;
+  entity_name?: string | null;
+  entity_type: EntityType;
+  is_active?: boolean | null;
+  min_importance?: number | null;
+  sentiment?: AlertSentiment | null;
+}
+
+export interface RunEmailAlertsInput {
+  dry_run: boolean;
+  limit_per_alert: number;
+}
+
+export interface RunEmailAlertsResponse {
+  alerts_evaluated: number;
+  dry_run: boolean;
+  failed: number;
+  matches_found: number;
+  sent: number;
+  skipped_duplicates: number;
 }

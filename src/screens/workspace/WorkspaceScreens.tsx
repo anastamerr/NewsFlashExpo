@@ -7,7 +7,10 @@ import type { RootStackParamList } from '../../navigation/AppNavigator';
 import { useSession } from '../../store/session';
 import { palette, radii, spacing, typography } from '../../theme/tokens';
 import type { AccessRole, MembershipRole } from '../../types/api';
+import { AlertsScreen as AlertsWorkspaceScreen } from './AlertsScreen';
+import { BrowseScreen as BrowseWorkspaceScreen } from './BrowseScreen';
 import { TodayScreen as TodayWorkspaceScreen } from './TodayScreen';
+import { WatchlistScreen as WatchlistWorkspaceScreen } from './WatchlistScreen';
 
 type WorkspaceRoute = Exclude<
   keyof RootStackParamList,
@@ -43,21 +46,11 @@ export function TodayScreen() {
 }
 
 export function BrowseScreen() {
-  return (
-    <PlaceholderWorkspace
-      description="Search and filter monitored content with real query, filter, and AI action flows."
-      title="Browse"
-    />
-  );
+  return <BrowseWorkspaceScreen />;
 }
 
 export function WatchlistScreen() {
-  return (
-    <PlaceholderWorkspace
-      description="Entity management and watchlist fetch tools will be connected to the live watchlist endpoints next."
-      title="Watchlist"
-    />
-  );
+  return <WatchlistWorkspaceScreen />;
 }
 
 export function DashboardsScreen() {
@@ -70,12 +63,7 @@ export function DashboardsScreen() {
 }
 
 export function AlertsScreen() {
-  return (
-    <PlaceholderWorkspace
-      description="Alert rule creation and recent trigger history will be wired to the tenant-aware alert endpoints."
-      title="Alerts"
-    />
-  );
+  return <AlertsWorkspaceScreen />;
 }
 
 function StaticWorkspaceScreen({
