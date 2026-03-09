@@ -1,20 +1,28 @@
-import { StatusBar } from 'expo-status-bar';
-import { SafeAreaView, StyleSheet } from 'react-native';
+import 'react-native-gesture-handler';
 
-import HomeScreen from '../screens/HomeScreen';
+import { StatusBar } from 'expo-status-bar';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+
+import { useAppFonts } from '../hooks/useAppFonts';
+import { AppNavigator } from '../navigation/AppNavigator';
+import { SessionProvider } from '../store/session';
 
 export default function App() {
+  const [fontsLoaded] = useAppFonts();
+
+  if (!fontsLoaded) {
+    return null;
+  }
+
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar style="dark" />
-      <HomeScreen />
-    </SafeAreaView>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+        <SessionProvider>
+          <StatusBar style="dark" />
+          <AppNavigator />
+        </SessionProvider>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-  },
-});
