@@ -39,7 +39,7 @@ export function DashboardsScreen({ navigation }: Props) {
       </View>
 
       {/* Period Selector */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.periodRow}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.periodScroll} contentContainerStyle={styles.periodRow}>
         {PERIODS.map((p) => (
           <Chip key={p} label={p} selected={period === p} onPress={() => setPeriod(p)} />
         ))}
@@ -124,9 +124,13 @@ const styles = StyleSheet.create({
   header: {
     marginBottom: spacing.sm,
   },
+  periodScroll: {
+    flexGrow: 0,
+    marginBottom: spacing.base,
+  },
   periodRow: {
     gap: spacing.sm,
-    marginBottom: spacing.base,
+    alignItems: 'center',
   },
   statsCard: {
     marginBottom: spacing.sm,
@@ -148,12 +152,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.sm,
+    alignItems: 'stretch',
   },
   tileWrapper: {
     width: '48.5%',
   },
   tile: {
-    minHeight: 130,
+    flex: 1,
   },
   tileIcon: {
     width: 40,
