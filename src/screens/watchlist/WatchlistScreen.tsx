@@ -5,6 +5,7 @@ import { Plus, Heart } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FlashList } from '@shopify/flash-list';
 import { WatchlistRow } from '@/components/lists/WatchlistRow';
+import { SwipeableRow, useDeleteAction, useShareAction } from '@/components/lists/SwipeableRow';
 import { Chip } from '@/components/ui/Chip';
 import { Button } from '@/components/ui/Button';
 import { useTheme, spacing } from '@/theme';
@@ -53,11 +54,16 @@ export function WatchlistScreen() {
     navigation.navigate('WatchlistDetail', { itemId: item.id, name: item.name });
   }, [navigation]);
 
+  const deleteAction = useDeleteAction(() => {});
+  const shareAction = useShareAction(() => {});
+
   const renderItem = useCallback(({ item, index }: { item: WatchlistItem; index: number }) => (
     <Animated.View entering={FadeInDown.delay(index * 60).springify()}>
-      <WatchlistRow item={item} onPress={handleItemPress} />
+      <SwipeableRow rightActions={[shareAction, deleteAction]}>
+        <WatchlistRow item={item} onPress={handleItemPress} />
+      </SwipeableRow>
     </Animated.View>
-  ), [handleItemPress]);
+  ), [handleItemPress, deleteAction, shareAction]);
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}>

@@ -7,6 +7,7 @@ import { FlashList } from '@shopify/flash-list';
 import { SearchBar } from '@/components/ui/SearchBar';
 import { Chip } from '@/components/ui/Chip';
 import { ArticleCard } from '@/components/lists/ArticleCard';
+import { SwipeableRow, useBookmarkAction, useShareAction } from '@/components/lists/SwipeableRow';
 import { useTheme, spacing } from '@/theme';
 import { typePresets } from '@/theme/typography';
 import { useDebounce } from '@/hooks/useDebounce';
@@ -59,11 +60,16 @@ export function BrowseScreen() {
     navigation.navigate('ArticleDetail', { articleId: article.id });
   }, [navigation]);
 
+  const bookmarkAction = useBookmarkAction(() => {});
+  const shareAction = useShareAction(() => {});
+
   const renderArticle = useCallback(({ item, index }: { item: Article; index: number }) => (
     <Animated.View entering={FadeInDown.delay(index * 40).springify()} style={styles.articleItem}>
-      <ArticleCard article={item} mode={viewMode} onPress={handleArticlePress} />
+      <SwipeableRow leftActions={[bookmarkAction]} rightActions={[shareAction]}>
+        <ArticleCard article={item} mode={viewMode} onPress={handleArticlePress} />
+      </SwipeableRow>
     </Animated.View>
-  ), [viewMode, handleArticlePress]);
+  ), [viewMode, handleArticlePress, bookmarkAction, shareAction]);
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}>

@@ -15,7 +15,9 @@ import { useTheme, spacing, palette } from '@/theme';
 import { typePresets, fontFamily } from '@/theme/typography';
 import { useAuthStore } from '@/store/authStore';
 import { useRefreshControl } from '@/hooks/useRefreshControl';
-import { MOCK_ARTICLES, MOCK_STATS, MOCK_ALERTS } from '@/constants/mockData';
+import { SparkLine } from '@/components/charts/SparkLine';
+import { MOCK_ARTICLES, MOCK_STATS, MOCK_ALERTS, MOCK_WATCHLIST } from '@/constants/mockData';
+import { getSentimentLabel } from '@/utils/sentiment';
 import { formatNumber } from '@/utils/format';
 import type { Article } from '@/types/api';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -168,6 +170,43 @@ export function TodayScreen() {
           </ScrollView>
         </Section>
       </Animated.View>
+
+      {/* Watchlist Highlights */}
+      <Animated.View entering={FadeInDown.delay(700).springify()}>
+        <Section title="Watchlist Highlights" onSeeAll={() => rootNav.navigate('Main', { screen: 'WatchlistTab' })}>
+          {MOCK_WATCHLIST.slice(0, 4).map((item, index) => {
+            const label = getSentimentLabel(item.sentiment ?? 0);
+            const sparkColor = label === 'positive' ? colors.sentimentPositive : label === 'negative' ? colors.sentimentNegative : colors.primary;
+            return (
+              <Animated.View key={item.id} entering={FadeInDown.delay(750 + index * 50).springify()}>
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  onPress={() => rootNav.navigate('Main', { screen: 'WatchlistTab' })}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${item.name}, sentiment ${label}`}
+                  style={[styles.watchlistItem, { backgroundColor: colors.surface }]}
+                >
+                  <View style={{ flex: 1 }}>
+                    <Text style={[typePresets.h3, { color: colors.text }]} numberOfLines={1}>{item.name}</Text>
+                    <Text style={[typePresets.labelSm, { color: colors.textTertiary, marginTop: 2 }]}>
+                      {item.articleCount} articles
+                    </Text>
+                  </View>
+                  <SparkLine
+                    data={item.sparkData ?? [1, 2, 1.5, 3, 2.5]}
+                    width={56}
+                    height={24}
+                    color={sparkColor}
+                  />
+                  <Text style={[typePresets.monoSm, { color: sparkColor, width: 36, textAlign: 'right' }]}>
+                    {(item.sentiment ?? 0) > 0 ? '+' : ''}{(item.sentiment ?? 0).toFixed(1)}
+                  </Text>
+                </TouchableOpacity>
+              </Animated.View>
+            );
+          })}
+        </Section>
+      </Animated.View>
     </ScreenContainer>
   );
 }
@@ -216,5 +255,13 @@ const styles = StyleSheet.create({
   },
   chipRow: {
     gap: spacing.sm,
+  },
+  watchlistItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    padding: spacing.base,
+    borderRadius: 12,
+    marginBottom: spacing.sm,
   },
 });
