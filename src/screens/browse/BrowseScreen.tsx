@@ -13,6 +13,7 @@ import { typePresets, fontFamily } from '@/theme/typography';
 import { selectionTap } from '@/utils/haptics';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useRefreshControl } from '@/hooks/useRefreshControl';
+import { useScrollDirection } from '@/hooks/useScrollDirection';
 import { SkeletonArticle } from '@/components/ui/Skeleton';
 import { MOCK_ARTICLES } from '@/constants/mockData';
 import type { Article } from '@/types/api';
@@ -39,6 +40,7 @@ export function BrowseScreen() {
   const { colors } = useTheme();
   const navigation = useNavigation<Nav>();
   const insets = useSafeAreaInsets();
+  const { handleScroll } = useScrollDirection();
   const [search, setSearch] = useState('');
   const [selectedSource, setSelectedSource] = useState('All');
   const [selectedSentiment, setSelectedSentiment] = useState('All');
@@ -253,6 +255,8 @@ export function BrowseScreen() {
           renderItem={renderArticle}
           contentContainerStyle={{ paddingHorizontal: spacing.base, paddingBottom: insets.bottom + 90 }}
           showsVerticalScrollIndicator={false}
+          onScroll={handleScroll}
+          scrollEventThrottle={16}
           refreshing={refreshing}
           onRefresh={onRefresh}
         />

@@ -10,6 +10,7 @@ import { useTheme, spacing } from '@/theme';
 import { typePresets } from '@/theme/typography';
 import { MOCK_ALERTS } from '@/constants/mockData';
 import { useRefreshControl } from '@/hooks/useRefreshControl';
+import { useScrollDirection } from '@/hooks/useScrollDirection';
 import { SkeletonAlert } from '@/components/ui/Skeleton';
 import type { AlertPublic } from '@/types/api';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -23,6 +24,7 @@ const FILTERS = ['All', 'Crisis', 'Active', 'Resolved'] as const;
 export function AlertsScreen({ navigation }: Props) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
+  const { handleScroll } = useScrollDirection();
   const [activeFilter, setActiveFilter] = useState<string>('All');
   const [isLoading, setIsLoading] = useState(true);
 
@@ -100,6 +102,8 @@ export function AlertsScreen({ navigation }: Props) {
           renderItem={renderAlert}
           contentContainerStyle={{ paddingHorizontal: spacing.base, paddingBottom: insets.bottom + 90 }}
           showsVerticalScrollIndicator={false}
+          onScroll={handleScroll}
+          scrollEventThrottle={16}
           refreshing={refreshing}
           onRefresh={onRefresh}
         />

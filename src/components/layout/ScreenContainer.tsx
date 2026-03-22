@@ -2,6 +2,7 @@ import React from 'react';
 import { View, ScrollView, StyleSheet, RefreshControl } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme, spacing } from '@/theme';
+import { useScrollDirection } from '@/hooks/useScrollDirection';
 
 interface Props {
   children: React.ReactNode;
@@ -22,6 +23,7 @@ export function ScreenContainer({
 }: Props) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
+  const { handleScroll } = useScrollDirection();
 
   const containerStyle = [
     styles.container,
@@ -48,6 +50,8 @@ export function ScreenContainer({
         padded && styles.padded,
       ]}
       showsVerticalScrollIndicator={false}
+      onScroll={handleScroll}
+      scrollEventThrottle={16}
       refreshControl={
         onRefresh ? (
           <RefreshControl

@@ -12,6 +12,7 @@ import { useTheme, spacing } from '@/theme';
 import { typePresets } from '@/theme/typography';
 import { MOCK_WATCHLIST } from '@/constants/mockData';
 import { useRefreshControl } from '@/hooks/useRefreshControl';
+import { useScrollDirection } from '@/hooks/useScrollDirection';
 import { SkeletonWatchlistRow } from '@/components/ui/Skeleton';
 import type { WatchlistItem } from '@/types/api';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -34,6 +35,7 @@ export function WatchlistScreen() {
   const { colors } = useTheme();
   const navigation = useNavigation<Nav>();
   const insets = useSafeAreaInsets();
+  const { handleScroll } = useScrollDirection();
   const [activeFilter, setActiveFilter] = useState('All');
   const [isLoading, setIsLoading] = useState(true);
 
@@ -114,6 +116,8 @@ export function WatchlistScreen() {
           renderItem={renderItem}
           contentContainerStyle={{ paddingHorizontal: spacing.base, paddingBottom: insets.bottom + 90 }}
           showsVerticalScrollIndicator={false}
+          onScroll={handleScroll}
+          scrollEventThrottle={16}
           refreshing={refreshing}
           onRefresh={onRefresh}
         />
