@@ -1,0 +1,74 @@
+import React from 'react';
+import { View, ScrollView, StyleSheet, RefreshControl } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTheme, spacing } from '@/theme';
+
+interface Props {
+  children: React.ReactNode;
+  scrollable?: boolean;
+  padded?: boolean;
+  refreshing?: boolean;
+  onRefresh?: () => void;
+  edges?: ('top' | 'bottom')[];
+}
+
+export function ScreenContainer({
+  children,
+  scrollable = true,
+  padded = true,
+  refreshing,
+  onRefresh,
+  edges = ['top'],
+}: Props) {
+  const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
+
+  const containerStyle = [
+    styles.container,
+    { backgroundColor: colors.background },
+    edges.includes('top') && { paddingTop: insets.top },
+    edges.includes('bottom') && { paddingBottom: insets.bottom + 80 },
+    !edges.includes('bottom') && { paddingBottom: 80 },
+  ];
+
+  if (!scrollable) {
+    return (
+      <View style={[containerStyle, padded && styles.padded]}>
+        {children}
+      </View>
+    );
+  }
+
+  return (
+    <ScrollView
+      style={[styles.container, { backgroundColor: colors.background }]}
+      contentContainerStyle={[
+        edges.includes('top') && { paddingTop: insets.top },
+        { paddingBottom: insets.bottom + 90 },
+        padded && styles.padded,
+      ]}
+      showsVerticalScrollIndicator={false}
+      refreshControl={
+        onRefresh ? (
+          <RefreshControl
+            refreshing={refreshing ?? false}
+            onRefresh={onRefresh}
+            tintColor={colors.primary}
+            colors={[colors.primary]}
+          />
+        ) : undefined
+      }
+    >
+      {children}
+    </ScrollView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  padded: {
+    paddingHorizontal: spacing.base,
+  },
+});
