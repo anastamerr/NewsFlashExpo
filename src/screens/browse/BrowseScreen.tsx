@@ -1,9 +1,9 @@
-import React, { useState, useMemo, useCallback } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import React, { useState, useMemo, useCallback, useRef } from 'react';
+import { View, Text, StyleSheet, LayoutAnimation, UIManager, Platform } from 'react-native';
 import Animated, { FadeInDown, FadeIn, FadeOut } from 'react-native-reanimated';
 import { TrendingUp, TrendingDown, Minus, LayoutGrid, List, SlidersHorizontal, Check } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { FlashList } from '@shopify/flash-list';
+import { FlashList, type FlashListRef } from '@shopify/flash-list';
 import { SearchBar } from '@/components/ui/SearchBar';
 import { Chip } from '@/components/ui/Chip';
 import { ArticleCard } from '@/components/lists/ArticleCard';
@@ -31,6 +31,10 @@ const SENTIMENT_OPTIONS = [
   { key: 'Negative', label: 'Negative', color: '#ef4444', Icon: TrendingDown },
 ] as const;
 
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
+
 export function BrowseScreen() {
   const { colors } = useTheme();
   const navigation = useNavigation<Nav>();
@@ -41,10 +45,38 @@ export function BrowseScreen() {
   const [viewMode, setViewMode] = useState<'expanded' | 'compact'>('expanded');
   const [showSentimentMenu, setShowSentimentMenu] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const hasAnimated = useRef(false);
+  const listRef = useRef<FlashListRef<Article>>(null);
+
+  const switchViewMode = useCallback((mode: 'expanded' | 'compact') => {
+    if (mode === viewMode) return;
+
+    listRef.current?.prepareForLayoutAnimationRender();
+    listRef.current?.clearLayoutCacheOnUpdate();
+    LayoutAnimation.configureNext({
+      duration: 250,
+      create: {
+        type: LayoutAnimation.Types.easeInEaseOut,
+        property: LayoutAnimation.Properties.opacity,
+      },
+      update: {
+        type: LayoutAnimation.Types.easeInEaseOut,
+      },
+      delete: {
+        type: LayoutAnimation.Types.easeInEaseOut,
+        property: LayoutAnimation.Properties.opacity,
+      },
+    });
+    setViewMode(mode);
+  }, [viewMode]);
+
   const debouncedSearch = useDebounce(search);
 
   React.useEffect(() => {
-    const timer = setTimeout(() => setIsLoading(false), 600);
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+      setTimeout(() => { hasAnimated.current = true; }, 500);
+    }, 600);
     return () => clearTimeout(timer);
   }, []);
 
@@ -70,13 +102,16 @@ export function BrowseScreen() {
   const bookmarkAction = useBookmarkAction(() => {});
   const shareAction = useShareAction(() => {});
 
-  const renderArticle = useCallback(({ item, index }: { item: Article; index: number }) => (
-    <Animated.View entering={FadeInDown.delay(index * 40).springify()} style={styles.articleItem}>
-      <SwipeableRow leftActions={[bookmarkAction]} rightActions={[shareAction]}>
-        <ArticleCard article={item} mode={viewMode} onPress={handleArticlePress} />
-      </SwipeableRow>
-    </Animated.View>
-  ), [viewMode, handleArticlePress, bookmarkAction, shareAction]);
+  const renderArticle = useCallback(({ item, index }: { item: Article; index: number }) => {
+    const entering = hasAnimated.current ? undefined : FadeInDown.delay(index * 40).springify();
+    return (
+      <Animated.View entering={entering}>
+        <SwipeableRow leftActions={[bookmarkAction]} rightActions={[shareAction]}>
+          <ArticleCard article={item} mode={viewMode} onPress={handleArticlePress} />
+        </SwipeableRow>
+      </Animated.View>
+    );
+  }, [viewMode, handleArticlePress, bookmarkAction, shareAction]);
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}>
@@ -85,13 +120,13 @@ export function BrowseScreen() {
         <Text style={[typePresets.h1, { color: colors.text }]}>Browse</Text>
         <View style={styles.viewToggle}>
           <TouchableOpacity
-            onPress={() => setViewMode('expanded')}
+            onPress={() => switchViewMode('expanded')}
             style={[styles.toggleBtn, viewMode === 'expanded' && { backgroundColor: colors.primary + '20' }]}
           >
             <LayoutGrid size={18} color={viewMode === 'expanded' ? colors.primary : colors.textTertiary} strokeWidth={2} />
           </TouchableOpacity>
           <TouchableOpacity
-            onPress={() => setViewMode('compact')}
+            onPress={() => switchViewMode('compact')}
             style={[styles.toggleBtn, viewMode === 'compact' && { backgroundColor: colors.primary + '20' }]}
           >
             <List size={18} color={viewMode === 'compact' ? colors.primary : colors.textTertiary} strokeWidth={2} />
@@ -211,7 +246,9 @@ export function BrowseScreen() {
         </View>
       ) : (
         <FlashList
+          ref={listRef}
           data={filteredArticles}
+          extraData={viewMode}
           keyExtractor={(item) => item.id}
           renderItem={renderArticle}
           contentContainerStyle={{ paddingHorizontal: spacing.base, paddingBottom: insets.bottom + 90 }}
