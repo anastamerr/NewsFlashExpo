@@ -77,25 +77,28 @@ export const AlertRow = memo(function AlertRow({ alert, onPress }: Props) {
         { backgroundColor: colors.surface },
       ]}
     >
-      <Animated.View
-        style={[
-          styles.severityBar,
-          { backgroundColor: config.color },
-          alert.severity === 'CRITICAL' && pulseStyle,
-        ]}
-      />
       <View style={styles.content}>
         <View style={styles.header}>
-          <config.Icon size={18} color={config.color} strokeWidth={2} />
-          <Text style={[typePresets.labelXs, { color: config.color, textTransform: undefined }]}>
-            {alert.severity}
-          </Text>
-          <Text style={[typePresets.labelSm, { color: colors.textTertiary, marginLeft: 'auto' }]}>
-            {timeAgo(alert.createdAt)}
-          </Text>
+          <Animated.View
+            style={[
+              styles.iconBadge,
+              { backgroundColor: config.color + '18' },
+              alert.severity === 'CRITICAL' && pulseStyle,
+            ]}
+          >
+            <config.Icon size={16} color={config.color} strokeWidth={2.5} />
+          </Animated.View>
+          <View style={styles.headerText}>
+            <Text style={[typePresets.labelXs, { color: config.color, textTransform: undefined }]}>
+              {alert.severity}
+            </Text>
+            <Text style={[typePresets.labelSm, { color: colors.textTertiary }]}>
+              {timeAgo(alert.createdAt)}
+            </Text>
+          </View>
         </View>
         <Text
-          style={[typePresets.h3, { color: colors.text, marginTop: spacing.xs }]}
+          style={[typePresets.h3, { color: colors.text, marginTop: spacing.sm }]}
           numberOfLines={1}
         >
           {alert.title}
@@ -124,13 +127,8 @@ export const AlertRow = memo(function AlertRow({ alert, onPress }: Props) {
 
 const styles = StyleSheet.create({
   container: {
-    flexDirection: 'row',
     borderRadius: radius.md,
     marginBottom: spacing.sm,
-    overflow: 'hidden',
-  },
-  severityBar: {
-    width: 4,
   },
   content: {
     flex: 1,
@@ -140,6 +138,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
+  },
+  iconBadge: {
+    width: 32,
+    height: 32,
+    borderRadius: radius.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerText: {
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   keywords: {
     flexDirection: 'row',

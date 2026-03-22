@@ -1,15 +1,16 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
-import { SlidersHorizontal, LayoutGrid, List } from 'lucide-react-native';
+import Animated, { FadeInDown, FadeIn, FadeOut } from 'react-native-reanimated';
+import { TrendingUp, TrendingDown, Minus, LayoutGrid, List, SlidersHorizontal, Check } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FlashList } from '@shopify/flash-list';
 import { SearchBar } from '@/components/ui/SearchBar';
 import { Chip } from '@/components/ui/Chip';
 import { ArticleCard } from '@/components/lists/ArticleCard';
 import { SwipeableRow, useBookmarkAction, useShareAction } from '@/components/lists/SwipeableRow';
-import { useTheme, spacing } from '@/theme';
-import { typePresets } from '@/theme/typography';
+import { useTheme, spacing, radius, shadows } from '@/theme';
+import { typePresets, fontFamily } from '@/theme/typography';
+import { selectionTap } from '@/utils/haptics';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useRefreshControl } from '@/hooks/useRefreshControl';
 import { SkeletonArticle } from '@/components/ui/Skeleton';
@@ -23,7 +24,12 @@ import { TouchableOpacity, ScrollView } from 'react-native';
 type Nav = NativeStackNavigationProp<BrowseStackParamList, 'Browse'>;
 
 const FILTER_SOURCES = ['All', 'Reuters', 'Bloomberg', 'Financial Times', 'Alborsa News', 'Mubasher', 'TechCrunch'];
-const FILTER_SENTIMENTS = ['All', 'Positive', 'Negative', 'Neutral'];
+const SENTIMENT_OPTIONS = [
+  { key: 'All', label: 'All Sentiments', color: '', Icon: Minus },
+  { key: 'Positive', label: 'Positive', color: '#10b981', Icon: TrendingUp },
+  { key: 'Neutral', label: 'Neutral', color: '#eab308', Icon: Minus },
+  { key: 'Negative', label: 'Negative', color: '#ef4444', Icon: TrendingDown },
+] as const;
 
 export function BrowseScreen() {
   const { colors } = useTheme();
@@ -33,6 +39,7 @@ export function BrowseScreen() {
   const [selectedSource, setSelectedSource] = useState('All');
   const [selectedSentiment, setSelectedSentiment] = useState('All');
   const [viewMode, setViewMode] = useState<'expanded' | 'compact'>('expanded');
+  const [showSentimentMenu, setShowSentimentMenu] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const debouncedSearch = useDebounce(search);
 
@@ -92,15 +99,92 @@ export function BrowseScreen() {
         </View>
       </View>
 
-      {/* Search */}
+      {/* Search + Sentiment filter */}
       <View style={styles.searchRow}>
-        <SearchBar value={search} onChangeText={setSearch} placeholder="Search articles..." />
+        <View style={styles.searchBarWrapper}>
+          <SearchBar value={search} onChangeText={setSearch} placeholder="Search articles..." />
+        </View>
+        <TouchableOpacity
+          onPress={() => setShowSentimentMenu((v) => !v)}
+          activeOpacity={0.7}
+          style={[
+            styles.filterBtn,
+            {
+              backgroundColor: selectedSentiment !== 'All'
+                ? SENTIMENT_OPTIONS.find((o) => o.key === selectedSentiment)!.color + '18'
+                : colors.inputBackground,
+              borderColor: selectedSentiment !== 'All'
+                ? SENTIMENT_OPTIONS.find((o) => o.key === selectedSentiment)!.color
+                : colors.border,
+            },
+          ]}
+        >
+          <SlidersHorizontal
+            size={18}
+            color={
+              selectedSentiment !== 'All'
+                ? SENTIMENT_OPTIONS.find((o) => o.key === selectedSentiment)!.color
+                : colors.textTertiary
+            }
+            strokeWidth={2}
+          />
+        </TouchableOpacity>
       </View>
 
-      {/* Filters */}
+      {showSentimentMenu && (
+        <Animated.View
+          entering={FadeIn.duration(150)}
+          exiting={FadeOut.duration(100)}
+          style={[styles.sentimentMenu, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}
+        >
+          {SENTIMENT_OPTIONS.map((opt) => {
+            const active = selectedSentiment === opt.key;
+            const optColor = opt.key === 'All' ? colors.text : opt.color;
+            return (
+              <TouchableOpacity
+                key={opt.key}
+                onPress={() => {
+                  selectionTap();
+                  setSelectedSentiment(opt.key);
+                  setShowSentimentMenu(false);
+                }}
+                activeOpacity={0.7}
+                style={[
+                  styles.sentimentMenuItem,
+                  active && { backgroundColor: (opt.key === 'All' ? colors.primary : opt.color) + '12' },
+                ]}
+              >
+                {opt.key !== 'All' && React.createElement(opt.Icon, {
+                  size: 16,
+                  color: active ? optColor : colors.textSecondary,
+                  strokeWidth: 2,
+                })}
+                <Text
+                  style={[
+                    typePresets.body,
+                    {
+                      flex: 1,
+                      color: active ? optColor : colors.textSecondary,
+                      fontFamily: active ? fontFamily.sansSemiBold : fontFamily.sans,
+                    },
+                  ]}
+                >
+                  {opt.label}
+                </Text>
+                {active && (
+                  <Check size={16} color={optColor} strokeWidth={2.5} />
+                )}
+              </TouchableOpacity>
+            );
+          })}
+        </Animated.View>
+      )}
+
+      {/* Source filters */}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
+        style={styles.filterScroll}
         contentContainerStyle={styles.filterRow}
       >
         {FILTER_SOURCES.map((source) => (
@@ -109,21 +193,6 @@ export function BrowseScreen() {
             label={source}
             selected={selectedSource === source}
             onPress={() => setSelectedSource(source)}
-          />
-        ))}
-      </ScrollView>
-
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.filterRow}
-      >
-        {FILTER_SENTIMENTS.map((sent) => (
-          <Chip
-            key={sent}
-            label={sent}
-            selected={selectedSentiment === sent}
-            onPress={() => setSelectedSentiment(sent)}
           />
         ))}
       </ScrollView>
@@ -179,13 +248,46 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   searchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: spacing.base,
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  searchBarWrapper: {
+    flex: 1,
+  },
+  filterBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sentimentMenu: {
+    marginHorizontal: spacing.base,
+    marginBottom: spacing.sm,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    overflow: 'hidden',
+    ...shadows.md,
+  },
+  sentimentMenuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.base,
+    paddingVertical: spacing.md,
+  },
+  filterScroll: {
+    flexGrow: 0,
     marginBottom: spacing.sm,
   },
   filterRow: {
     paddingHorizontal: spacing.base,
     gap: spacing.sm,
-    marginBottom: spacing.sm,
+    alignItems: 'center',
   },
   list: {
     paddingHorizontal: spacing.base,

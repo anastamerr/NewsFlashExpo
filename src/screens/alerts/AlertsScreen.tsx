@@ -74,6 +74,7 @@ export function AlertsScreen({ navigation }: Props) {
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
+        style={styles.filterScroll}
         contentContainerStyle={styles.filterRow}
       >
         {FILTERS.map((filter) => (
@@ -126,10 +127,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  filterScroll: {
+    flexGrow: 0,
+    marginBottom: spacing.base,
+  },
   filterRow: {
     paddingHorizontal: spacing.base,
     gap: spacing.sm,
-    marginBottom: spacing.base,
+    alignItems: 'center',
   },
   list: {
     paddingHorizontal: spacing.base,
