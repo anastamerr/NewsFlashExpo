@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { UserProfile, TenantOption } from '@/types/api';
 import * as authService from '@/services/auth';
+import { setUnauthorizedHandler } from '@/services/api';
 import * as storage from '@/utils/storage';
 
 interface AuthState {
@@ -108,3 +109,5 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
 }));
+
+setUnauthorizedHandler(() => useAuthStore.getState().signOut());

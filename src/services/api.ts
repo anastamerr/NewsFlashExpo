@@ -1,7 +1,6 @@
 import axios from 'axios';
 import { API_BASE_URL } from '@/constants/api';
 import { getToken } from '@/utils/storage';
-import { useAuthStore } from '@/store/authStore';
 
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
@@ -10,6 +9,12 @@ export const apiClient = axios.create({
     'Content-Type': 'application/json',
   },
 });
+
+let unauthorizedHandler: (() => void | Promise<void>) | null = null;
+
+export function setUnauthorizedHandler(handler: (() => void | Promise<void>) | null) {
+  unauthorizedHandler = handler;
+}
 
 apiClient.interceptors.request.use(async (config) => {
   const token = await getToken();
@@ -23,7 +28,7 @@ apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
     if (axios.isAxiosError(error) && error.response?.status === 401) {
-      useAuthStore.getState().signOut();
+      void unauthorizedHandler?.();
     }
     return Promise.reject(error);
   },
