@@ -80,10 +80,13 @@ export function DashboardsScreen({ navigation }: Props) {
                 <View style={[styles.tileIcon, { backgroundColor: tile.color + '18' }]}>
                   <tile.icon size={22} color={tile.color} strokeWidth={1.8} />
                 </View>
-                <Text style={[typePresets.h3, { color: colors.text, marginTop: spacing.md }]}>
+                <Text style={[typePresets.h3, styles.tileTitle, { color: colors.text }]}>
                   {tile.title}
                 </Text>
-                <Text style={[typePresets.bodySm, { color: colors.textSecondary, marginTop: spacing.xxs }]}>
+                <Text
+                  style={[typePresets.bodySm, styles.tileDescription, { color: colors.textSecondary }]}
+                  numberOfLines={2}
+                >
                   {tile.description}
                 </Text>
               </Card>
@@ -152,20 +155,30 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.sm,
-    alignItems: 'stretch',
   },
   tileWrapper: {
-    width: '48.5%',
+    flexBasis: '48%',
+    maxWidth: '48%',
   },
   tile: {
-    flex: 1,
+    minHeight: 156,
+    justifyContent: 'flex-start',
   },
   tileIcon: {
     width: 40,
     height: 40,
     borderRadius: 12,
+    borderCurve: 'continuous',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  tileTitle: {
+    marginTop: spacing.md,
+    minHeight: 44,
+  },
+  tileDescription: {
+    marginTop: spacing.xxs,
+    minHeight: 36,
   },
   sourceRow: {
     flexDirection: 'row',
