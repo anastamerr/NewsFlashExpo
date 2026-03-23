@@ -1,5 +1,6 @@
-import React, { useCallback } from 'react';
+import React, { memo, useCallback } from 'react';
 import { View, Pressable, StyleSheet, Platform } from 'react-native';
+import { TabActions } from '@react-navigation/native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -16,16 +17,19 @@ import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 const TAB_ICONS = [Newspaper, Search, Bookmark, BarChart3, Bell] as const;
 const TAB_LABELS = ['Today', 'Browse', 'Watchlist', 'Analytics', 'Alerts'] as const;
 
-function TabItem({
+type TabRoute = BottomTabBarProps['state']['routes'][number];
+type TabNavigation = BottomTabBarProps['navigation'];
+
+const TabItem = memo(function TabItem({
+  route,
   index,
   isFocused,
-  onPress,
-  onLongPress,
+  navigation,
 }: {
+  route: TabRoute;
   index: number;
   isFocused: boolean;
-  onPress: () => void;
-  onLongPress: () => void;
+  navigation: TabNavigation;
 }) {
   const { colors } = useTheme();
   const Icon = TAB_ICONS[index];
@@ -46,14 +50,26 @@ function TabItem({
   };
 
   const handlePress = useCallback(() => {
-    lightTap();
-    onPress();
-  }, [onPress]);
+    const event = navigation.emit({
+      type: 'tabPress',
+      target: route.key,
+      canPreventDefault: true,
+    });
+
+    if (!isFocused && !event.defaultPrevented) {
+      lightTap();
+      navigation.dispatch(TabActions.jumpTo(route.name, route.params));
+    }
+  }, [isFocused, navigation, route.key, route.name, route.params]);
+
+  const handleLongPress = useCallback(() => {
+    navigation.emit({ type: 'tabLongPress', target: route.key });
+  }, [navigation, route.key]);
 
   return (
     <Pressable
       onPress={handlePress}
-      onLongPress={onLongPress}
+      onLongPress={handleLongPress}
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
       accessibilityRole="tab"
@@ -85,9 +101,9 @@ function TabItem({
       )}
     </Pressable>
   );
-}
+});
 
-export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
+export function TabBar({ state, navigation }: BottomTabBarProps) {
   const { colors, isDark } = useTheme();
   const insets = useSafeAreaInsets();
 
@@ -109,31 +125,15 @@ export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
       <View style={[styles.topBorder, { backgroundColor: colors.tabBarBorder }]} />
       <View style={styles.tabRow}>
         {state.routes.map((route, index) => {
-          const { options } = descriptors[route.key];
           const isFocused = state.index === index;
-
-          const onPress = () => {
-            const event = navigation.emit({
-              type: 'tabPress',
-              target: route.key,
-              canPreventDefault: true,
-            });
-            if (!isFocused && !event.defaultPrevented) {
-              navigation.navigate(route.name, route.params);
-            }
-          };
-
-          const onLongPress = () => {
-            navigation.emit({ type: 'tabLongPress', target: route.key });
-          };
 
           return (
             <TabItem
               key={route.key}
+              route={route}
               index={index}
               isFocused={isFocused}
-              onPress={onPress}
-              onLongPress={onLongPress}
+              navigation={navigation}
             />
           );
         })}

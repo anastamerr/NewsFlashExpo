@@ -3,6 +3,7 @@ import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { enableFreeze } from 'react-native-screens';
 import {
   useFonts,
   Newsreader_400Regular,
@@ -25,6 +26,8 @@ import { ThemeProvider, useTheme } from '@/theme';
 import { ToastProvider } from '@/components/ui/Toast';
 import { NavigationRoot } from '@/navigation/NavigationRoot';
 import { useAuthStore } from '@/store/authStore';
+
+enableFreeze(true);
 
 function AppContent() {
   const { colors, isDark } = useTheme();

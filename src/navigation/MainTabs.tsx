@@ -16,6 +16,8 @@ export function MainTabs() {
       tabBar={(props) => <TabBar {...props} />}
       screenOptions={{
         headerShown: false,
+        freezeOnBlur: true,
+        lazy: true,
       }}
     >
       <Tab.Screen name="TodayTab" component={TodayStack} />
