@@ -46,7 +46,9 @@ export function UsersScreen({ navigation }: Props) {
             <View style={styles.userInfo}>
               <Text style={[typePresets.h3, { color: colors.text }]}>{item.name}</Text>
               <Text style={[typePresets.bodySm, { color: colors.textSecondary }]}>{item.email}</Text>
-              <Badge label={item.role.replace(/-/g, ' ')} variant={roleVariant} small />
+              <View style={styles.roleBadge}>
+                <Badge label={item.role.replace(/-/g, ' ')} variant={roleVariant} small />
+              </View>
             </View>
             <Toggle value={item.isActive} onValueChange={() => {}} />
           </View>
@@ -133,6 +135,9 @@ const styles = StyleSheet.create({
   userInfo: {
     flex: 1,
     gap: 2,
+  },
+  roleBadge: {
+    alignSelf: 'flex-start',
   },
   pressed: {
     opacity: 0.8,
