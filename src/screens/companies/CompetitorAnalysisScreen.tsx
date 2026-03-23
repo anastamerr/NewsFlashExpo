@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-import { ArrowLeft, ArrowRight } from 'lucide-react-native';
+import { ArrowLeft } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Card } from '@/components/ui/Card';
 import { GlassCard } from '@/components/ui/GlassCard';
@@ -35,14 +35,20 @@ export function CompetitorAnalysisScreen({ navigation }: Props) {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerBtn} accessibilityRole="button" accessibilityLabel="Go back">
+        <Pressable
+          onPress={() => navigation.goBack()}
+          style={({ pressed }) => [styles.headerBtn, pressed && styles.pressed]}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+        >
           <ArrowLeft size={22} color={colors.text} strokeWidth={2} />
-        </TouchableOpacity>
+        </Pressable>
         <Text style={[typePresets.h3, { color: colors.text }]}>Competitor Analysis</Text>
         <View style={{ width: 40 }} />
       </View>
 
       <ScrollView
+        contentInsetAdjustmentBehavior="automatic"
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + spacing.xxl }]}
       >
@@ -141,6 +147,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
+    borderCurve: 'continuous',
     alignItems: 'center',
     justifyContent: 'center',
     marginHorizontal: spacing.sm,
@@ -165,5 +172,8 @@ const styles = StyleSheet.create({
   barFill: {
     height: '100%',
     borderRadius: 4,
+  },
+  pressed: {
+    opacity: 0.8,
   },
 });

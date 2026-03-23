@@ -1,11 +1,5 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import Animated, {
-  useSharedValue,
-  useAnimatedProps,
-  withTiming,
-  Easing,
-} from 'react-native-reanimated';
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react-native';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { useTheme, spacing } from '@/theme';
@@ -29,14 +23,6 @@ export function MetricCard({
   format: formatFn,
 }: Props) {
   const { colors } = useTheme();
-  const animatedValue = useSharedValue(0);
-
-  useEffect(() => {
-    animatedValue.value = withTiming(value, {
-      duration: 800,
-      easing: Easing.out(Easing.cubic),
-    });
-  }, [value]);
 
   const displayValue = formatFn ? formatFn(value) : `${prefix}${value}${suffix}`;
 

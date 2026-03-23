@@ -17,7 +17,7 @@ export function useAnimatedEntry(index: number, enabled: boolean = true) {
     const delay = Math.min(index * ANIMATION.STAGGER_DELAY, ANIMATION.MAX_STAGGER_ITEMS * ANIMATION.STAGGER_DELAY);
     opacity.value = withDelay(delay, withTiming(1, { duration: 300 }));
     translateY.value = withDelay(delay, withSpring(0, ANIMATION.SPRING_CONFIG));
-  }, [enabled]);
+  }, [enabled, index, opacity, translateY]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     opacity: opacity.value,

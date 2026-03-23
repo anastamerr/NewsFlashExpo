@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
 import { ArrowLeft, AlertTriangle, Clock, Radio, Tag, CheckCircle } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -36,14 +36,20 @@ export function AlertDetailScreen({ route, navigation }: Props) {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerBtn} accessibilityRole="button" accessibilityLabel="Go back">
+        <Pressable
+          onPress={() => navigation.goBack()}
+          style={({ pressed }) => [styles.headerBtn, pressed && styles.pressed]}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+        >
           <ArrowLeft size={22} color={colors.text} strokeWidth={2} />
-        </TouchableOpacity>
+        </Pressable>
         <Text style={[typePresets.h3, { color: colors.text }]}>Alert Details</Text>
         <View style={{ width: 40 }} />
       </View>
 
       <ScrollView
+        contentInsetAdjustmentBehavior="automatic"
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + spacing.xxl }]}
       >
@@ -56,9 +62,9 @@ export function AlertDetailScreen({ route, navigation }: Props) {
                 label={alert.severity}
                 variant={alert.severity === 'CRITICAL' ? 'danger' : alert.severity === 'HIGH' ? 'warning' : 'primary'}
               />
-              {alert.isResolved && (
+              {alert.isResolved ? (
                 <Badge label="Resolved" variant="success" dot />
-              )}
+              ) : null}
             </View>
             <Text style={[typePresets.displaySm, { color: colors.text, marginTop: spacing.md }]}>
               {alert.title}
@@ -84,14 +90,14 @@ export function AlertDetailScreen({ route, navigation }: Props) {
                 Source: {alert.source}
               </Text>
             </View>
-            {alert.type && (
+            {alert.type ? (
               <View style={styles.metaRow}>
                 <Tag size={16} color={colors.textTertiary} strokeWidth={2} />
                 <Text style={[typePresets.bodySm, { color: colors.textSecondary }]}>
                   Type: {alert.type.replace(/_/g, ' ')}
                 </Text>
               </View>
-            )}
+            ) : null}
           </Card>
         </Animated.View>
 
@@ -192,5 +198,8 @@ const styles = StyleSheet.create({
   },
   actions: {
     marginTop: spacing.xl,
+  },
+  pressed: {
+    opacity: 0.8,
   },
 });

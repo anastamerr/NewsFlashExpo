@@ -1,5 +1,5 @@
-import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useState, useCallback, useMemo } from 'react';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
 import { Plus, Heart } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -51,6 +51,13 @@ export function WatchlistScreen() {
   const filteredItems = TYPE_MAP[activeFilter]
     ? MOCK_WATCHLIST.filter((w) => w.type === TYPE_MAP[activeFilter])
     : MOCK_WATCHLIST;
+  const listContentContainerStyle = useMemo(
+    () => ({
+      paddingHorizontal: spacing.base,
+      paddingBottom: insets.bottom + 90,
+    }),
+    [insets.bottom],
+  );
 
   const handleItemPress = useCallback((item: WatchlistItem) => {
     navigation.navigate('WatchlistDetail', { itemId: item.id, name: item.name });
@@ -71,9 +78,15 @@ export function WatchlistScreen() {
     <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}>
       <View style={styles.header}>
         <Text style={[typePresets.h1, { color: colors.text }]}>Watchlist</Text>
-        <TouchableOpacity style={[styles.addBtn, { backgroundColor: colors.primary }]}>
+        <Pressable
+          style={({ pressed }) => [
+            styles.addBtn,
+            { backgroundColor: colors.primary },
+            pressed && styles.pressed,
+          ]}
+        >
           <Plus size={20} color={colors.textInverse} strokeWidth={2.5} />
-        </TouchableOpacity>
+        </Pressable>
       </View>
 
       <ScrollView
@@ -114,7 +127,7 @@ export function WatchlistScreen() {
           data={filteredItems}
           keyExtractor={(item) => item.id}
           renderItem={renderItem}
-          contentContainerStyle={{ paddingHorizontal: spacing.base, paddingBottom: insets.bottom + 90 }}
+          contentContainerStyle={listContentContainerStyle}
           showsVerticalScrollIndicator={false}
           onScroll={handleScroll}
           scrollEventThrottle={16}
@@ -142,6 +155,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 10,
+    borderCurve: 'continuous',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -163,5 +177,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: spacing.xxl,
     gap: spacing.sm,
+  },
+  pressed: {
+    opacity: 0.8,
   },
 });

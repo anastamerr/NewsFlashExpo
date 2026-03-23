@@ -1,5 +1,5 @@
 import React, { useCallback } from 'react';
-import { View, TouchableOpacity, StyleSheet, Platform } from 'react-native';
+import { View, Pressable, StyleSheet, Platform } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -51,38 +51,39 @@ function TabItem({
   }, [onPress]);
 
   return (
-    <TouchableOpacity
+    <Pressable
       onPress={handlePress}
       onLongPress={onLongPress}
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
-      activeOpacity={0.7}
       accessibilityRole="tab"
       accessibilityLabel={label}
       accessibilityState={{ selected: isFocused }}
       style={styles.tabItem}
     >
-      <Animated.View style={[styles.tabContent, animatedStyle]}>
-        <Icon
-          size={22}
-          color={isFocused ? colors.tabBarActive : colors.tabBarInactive}
-          strokeWidth={isFocused ? 2.2 : 1.8}
-        />
-        {isFocused && (
-          <Animated.Text
-            style={[
-              styles.tabLabel,
-              { color: colors.tabBarActive },
-            ]}
-          >
-            {label}
-          </Animated.Text>
-        )}
-        {isFocused && (
-          <View style={[styles.activeIndicator, { backgroundColor: colors.tabBarActive }]} />
-        )}
-      </Animated.View>
-    </TouchableOpacity>
+      {({ pressed }) => (
+        <Animated.View style={[styles.tabContent, animatedStyle, pressed && styles.pressed]}>
+          <Icon
+            size={22}
+            color={isFocused ? colors.tabBarActive : colors.tabBarInactive}
+            strokeWidth={isFocused ? 2.2 : 1.8}
+          />
+          {isFocused ? (
+            <Animated.Text
+              style={[
+                styles.tabLabel,
+                { color: colors.tabBarActive },
+              ]}
+            >
+              {label}
+            </Animated.Text>
+          ) : null}
+          {isFocused ? (
+            <View style={[styles.activeIndicator, { backgroundColor: colors.tabBarActive }]} />
+          ) : null}
+        </Animated.View>
+      )}
+    </Pressable>
   );
 }
 
@@ -170,6 +171,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 3,
+  },
+  pressed: {
+    opacity: 0.7,
   },
   tabLabel: {
     fontFamily: fontFamily.sansMedium,

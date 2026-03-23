@@ -1,11 +1,12 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { memo, useState, useCallback, useRef } from 'react';
 import {
-  View, Text, StyleSheet, FlatList, TextInput,
-  TouchableOpacity, KeyboardAvoidingView, Platform,
+  View, Text, StyleSheet, TextInput,
+  Pressable, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { Send, Bot, User, X } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { FlashList, type FlashListRef } from '@shopify/flash-list';
 import { useTheme, spacing, radius } from '@/theme';
 import { typePresets, fontFamily } from '@/theme/typography';
 import { GlassCard } from '@/components/ui/GlassCard';
@@ -18,13 +19,34 @@ interface Props {
   onClose: () => void;
 }
 
+const SuggestedQuestion = memo(function SuggestedQuestion({
+  question,
+  onSelectQuestion,
+}: {
+  question: string;
+  onSelectQuestion: (question: string) => void;
+}) {
+  const { colors } = useTheme();
+  const handlePress = useCallback(() => {
+    onSelectQuestion(question);
+  }, [onSelectQuestion, question]);
+
+  return (
+    <GlassCard style={styles.suggestionCard}>
+      <Pressable onPress={handlePress} style={({ pressed }) => pressed && styles.pressed}>
+        <Text style={[typePresets.bodySm, { color: colors.text }]}>{question}</Text>
+      </Pressable>
+    </GlassCard>
+  );
+});
+
 export function ChatScreen({ visible, onClose }: Props) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [selectedAssistant, setSelectedAssistant] = useState(MOCK_CHAT_ASSISTANTS[0]);
-  const flatListRef = useRef<FlatList>(null);
+  const flatListRef = useRef<FlashListRef<ChatMessage>>(null);
 
   const handleSend = useCallback(() => {
     if (!input.trim()) return;
@@ -103,9 +125,14 @@ export function ChatScreen({ visible, onClose }: Props) {
             <Text style={[typePresets.labelSm, { color: colors.textTertiary }]}>{selectedAssistant.description}</Text>
           </View>
         </View>
-        <TouchableOpacity onPress={onClose} style={styles.closeBtn} accessibilityRole="button" accessibilityLabel="Close chat">
+        <Pressable
+          onPress={onClose}
+          style={({ pressed }) => [styles.closeBtn, pressed && styles.pressed]}
+          accessibilityRole="button"
+          accessibilityLabel="Close chat"
+        >
           <X size={22} color={colors.textSecondary} strokeWidth={2} />
-        </TouchableOpacity>
+        </Pressable>
       </View>
 
       {/* Messages */}
@@ -120,17 +147,13 @@ export function ChatScreen({ visible, onClose }: Props) {
           <View style={styles.suggestions}>
             {selectedAssistant.suggestedQuestions.map((q) => (
               <Animated.View key={q} entering={FadeInDown.delay(100).springify()}>
-                <GlassCard style={styles.suggestionCard}>
-                  <TouchableOpacity onPress={() => handleSuggestedQuestion(q)}>
-                    <Text style={[typePresets.bodySm, { color: colors.text }]}>{q}</Text>
-                  </TouchableOpacity>
-                </GlassCard>
+                <SuggestedQuestion question={q} onSelectQuestion={handleSuggestedQuestion} />
               </Animated.View>
             ))}
           </View>
         </View>
       ) : (
-        <FlatList
+        <FlashList
           ref={flatListRef}
           data={messages}
           keyExtractor={(item) => item.id}
@@ -156,16 +179,20 @@ export function ChatScreen({ visible, onClose }: Props) {
             multiline
             maxLength={2000}
           />
-          <TouchableOpacity
+          <Pressable
             onPress={handleSend}
             disabled={!input.trim()}
             accessibilityRole="button"
             accessibilityLabel="Send message"
             accessibilityState={{ disabled: !input.trim() }}
-            style={[styles.sendBtn, { backgroundColor: input.trim() ? colors.primary : colors.muted }]}
+            style={({ pressed }) => [
+              styles.sendBtn,
+              { backgroundColor: input.trim() ? colors.primary : colors.muted },
+              pressed && styles.pressed,
+            ]}
           >
             <Send size={18} color={input.trim() ? colors.textInverse : colors.textTertiary} strokeWidth={2} />
-          </TouchableOpacity>
+          </Pressable>
         </View>
       </KeyboardAvoidingView>
     </View>
@@ -237,6 +264,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.base,
     paddingVertical: spacing.md,
     borderRadius: radius.lg,
+    borderCurve: 'continuous',
     maxWidth: '100%',
   },
   inputRow: {
@@ -259,7 +287,11 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: radius.md,
+    borderCurve: 'continuous',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  pressed: {
+    opacity: 0.8,
   },
 });

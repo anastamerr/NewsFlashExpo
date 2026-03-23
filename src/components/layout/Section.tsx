@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { useTheme, spacing } from '@/theme';
 import { typePresets } from '@/theme/typography';
 
@@ -17,13 +17,13 @@ export function Section({ title, seeAllLabel = 'See all', onSeeAll, children }: 
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={[typePresets.h2, { color: colors.text }]}>{title}</Text>
-        {onSeeAll && (
-          <TouchableOpacity onPress={onSeeAll} hitSlop={8}>
+        {onSeeAll ? (
+          <Pressable onPress={onSeeAll} hitSlop={8} style={({ pressed }) => pressed && styles.pressed}>
             <Text style={[typePresets.label, { color: colors.primary }]}>
               {seeAllLabel}
             </Text>
-          </TouchableOpacity>
-        )}
+          </Pressable>
+        ) : null}
       </View>
       {children}
     </View>
@@ -39,5 +39,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: spacing.md,
+  },
+  pressed: {
+    opacity: 0.7,
   },
 });

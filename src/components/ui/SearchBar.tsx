@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, TextInput, Pressable, StyleSheet } from 'react-native';
 import { Search, X } from 'lucide-react-native';
 import { useTheme, spacing, radius } from '@/theme';
 import { fontFamily } from '@/theme/typography';
@@ -33,11 +33,11 @@ export function SearchBar({
         accessibilityLabel={placeholder}
         style={[styles.input, { color: colors.text, fontFamily: fontFamily.sans }]}
       />
-      {value.length > 0 && (
-        <TouchableOpacity onPress={() => onChangeText('')} hitSlop={8} accessibilityRole="button" accessibilityLabel="Clear search">
+      {value.length > 0 ? (
+        <Pressable onPress={() => onChangeText('')} hitSlop={8} accessibilityRole="button" accessibilityLabel="Clear search" style={({ pressed }) => pressed && styles.pressed}>
           <X size={16} color={colors.textTertiary} strokeWidth={2} />
-        </TouchableOpacity>
-      )}
+        </Pressable>
+      ) : null}
     </View>
   );
 }
@@ -50,11 +50,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     height: 44,
     borderRadius: radius.md,
+    borderCurve: 'continuous',
     borderWidth: 1,
   },
   input: {
     flex: 1,
     fontSize: 15,
     lineHeight: 20,
+  },
+  pressed: {
+    opacity: 0.7,
   },
 });

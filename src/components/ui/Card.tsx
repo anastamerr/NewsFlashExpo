@@ -1,5 +1,5 @@
 import React, { useCallback } from 'react';
-import { View, TouchableOpacity, StyleSheet, type ViewStyle } from 'react-native';
+import { View, Pressable, StyleSheet, type ViewStyle } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -7,8 +7,6 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useTheme, spacing, radius, shadows } from '@/theme';
 import { ANIMATION } from '@/constants/app';
-
-const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
 
 interface Props {
   children: React.ReactNode;
@@ -42,16 +40,19 @@ export function Card({ children, onPress, variant = 'default', style }: Props) {
 
   if (onPress) {
     return (
-      <AnimatedTouchable
+      <Pressable
         onPress={onPress}
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
-        activeOpacity={0.9}
         accessibilityRole="button"
-        style={[animatedStyle, styles.card, cardStyle, style]}
+        style={styles.pressable}
       >
-        {children}
-      </AnimatedTouchable>
+        {({ pressed }) => (
+          <Animated.View style={[animatedStyle, styles.card, cardStyle, style, pressed && styles.pressed]}>
+            {children}
+          </Animated.View>
+        )}
+      </Pressable>
     );
   }
 
@@ -65,6 +66,14 @@ export function Card({ children, onPress, variant = 'default', style }: Props) {
 const styles = StyleSheet.create({
   card: {
     borderRadius: radius.md,
+    borderCurve: 'continuous',
     padding: spacing.base,
+  },
+  pressable: {
+    borderRadius: radius.md,
+    borderCurve: 'continuous',
+  },
+  pressed: {
+    opacity: 0.9,
   },
 });

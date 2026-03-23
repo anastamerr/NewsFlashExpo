@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { ArrowLeft } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -67,14 +67,20 @@ export function DashboardDetailScreen({ route, navigation }: Props) {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerBtn} accessibilityRole="button" accessibilityLabel="Go back">
+        <Pressable
+          onPress={() => navigation.goBack()}
+          style={({ pressed }) => [styles.headerBtn, pressed && styles.pressed]}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+        >
           <ArrowLeft size={22} color={colors.text} strokeWidth={2} />
-        </TouchableOpacity>
+        </Pressable>
         <Text style={[typePresets.h3, { color: colors.text }]}>{title}</Text>
         <View style={{ width: 40 }} />
       </View>
 
       <ScrollView
+        contentInsetAdjustmentBehavior="automatic"
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + spacing.xxl }]}
       >
@@ -216,5 +222,8 @@ const styles = StyleSheet.create({
   topicBar: {
     height: '100%',
     borderRadius: 3,
+  },
+  pressed: {
+    opacity: 0.8,
   },
 });

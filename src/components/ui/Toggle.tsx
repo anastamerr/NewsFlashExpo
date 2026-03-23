@@ -1,5 +1,5 @@
 import React, { useCallback } from 'react';
-import { TouchableOpacity, StyleSheet } from 'react-native';
+import { Pressable, StyleSheet } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -43,32 +43,42 @@ export function Toggle({ value, onValueChange, disabled = false }: Props) {
   }, [value, disabled, onValueChange]);
 
   return (
-    <TouchableOpacity
+    <Pressable
       onPress={handlePress}
-      activeOpacity={0.8}
       disabled={disabled}
       accessibilityRole="switch"
       accessibilityState={{ checked: value, disabled }}
-      style={{ opacity: disabled ? 0.5 : 1 }}
+      style={({ pressed }) => [styles.pressable, disabled && styles.disabled, pressed && styles.pressed]}
     >
       <Animated.View style={[styles.track, trackStyle]}>
         <Animated.View style={[styles.thumb, thumbStyle]} />
       </Animated.View>
-    </TouchableOpacity>
+    </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
+  pressable: {
+    opacity: 1,
+  },
+  disabled: {
+    opacity: 0.5,
+  },
+  pressed: {
+    opacity: 0.8,
+  },
   track: {
     width: 48,
     height: 28,
     borderRadius: 14,
+    borderCurve: 'continuous',
     padding: 3,
   },
   thumb: {
     width: 22,
     height: 22,
     borderRadius: 11,
+    borderCurve: 'continuous',
     backgroundColor: '#ffffff',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Pressable, StyleSheet } from 'react-native';
 import {
   NavigationContainer,
   DefaultTheme,
@@ -34,7 +34,6 @@ import { CompetitorAnalysisScreen } from '@/screens/companies/CompetitorAnalysis
 import { ChatScreen } from '@/screens/chat/ChatScreen';
 import type { RootStackParamList } from '@/types/navigation';
 
-const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const navigationRef = createNavigationContainerRef<RootStackParamList>();
 
@@ -72,27 +71,30 @@ function ChatFab({ onPress }: { onPress: () => void }) {
   });
 
   return (
-    <AnimatedTouchable
+    <Pressable
       onPress={() => { lightTap(); onPress(); }}
       onPressIn={() => { fabScale.value = withSpring(0.9, { damping: 12 }); }}
       onPressOut={() => { fabScale.value = withSpring(1, { damping: 12 }); }}
-      activeOpacity={0.9}
       accessibilityRole="button"
       accessibilityLabel="Open AI chat assistant"
-      style={[
-        styles.fab,
-        fabAnimStyle,
-        { backgroundColor: colors.primary, ...shadows.glow },
-      ]}
+      style={styles.fabPressable}
     >
-      <MessageCircle size={24} color={colors.textInverse} strokeWidth={2} />
-    </AnimatedTouchable>
+      <Animated.View
+        style={[
+          styles.fab,
+          fabAnimStyle,
+          { backgroundColor: colors.primary, ...shadows.glow },
+        ]}
+      >
+        <MessageCircle size={24} color={colors.textInverse} strokeWidth={2} />
+      </Animated.View>
+    </Pressable>
   );
 }
 
 export function NavigationRoot() {
   const { colors, isDark } = useTheme();
-  const { isAuthenticated, isBootstrapping, tenants, tenantId } = useAuthStore();
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const [chatVisible, setChatVisible] = useState(false);
   const [activeRouteName, setActiveRouteName] = useState<string>();
 
@@ -167,15 +169,18 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
   },
-  fab: {
+  fabPressable: {
     position: 'absolute',
     bottom: 100,
     right: 20,
+    zIndex: 100,
+  },
+  fab: {
     width: 56,
     height: 56,
     borderRadius: 28,
+    borderCurve: 'continuous',
     alignItems: 'center',
     justifyContent: 'center',
-    zIndex: 100,
   },
 });

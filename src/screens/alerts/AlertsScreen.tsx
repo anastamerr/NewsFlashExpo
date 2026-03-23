@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Plus, Bell } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -45,6 +45,13 @@ export function AlertsScreen({ navigation }: Props) {
       default: return MOCK_ALERTS;
     }
   }, [activeFilter]);
+  const listContentContainerStyle = useMemo(
+    () => ({
+      paddingHorizontal: spacing.base,
+      paddingBottom: insets.bottom + 90,
+    }),
+    [insets.bottom],
+  );
 
   const handleAlertPress = useCallback((alert: AlertPublic) => {
     navigation.navigate('AlertDetail', { alertId: alert.id });
@@ -68,9 +75,15 @@ export function AlertsScreen({ navigation }: Props) {
             {activeCount} active{criticalCount > 0 ? ` \u00b7 ${criticalCount} critical` : ''}
           </Text>
         </View>
-        <TouchableOpacity style={[styles.addBtn, { backgroundColor: colors.primary }]}>
+        <Pressable
+          style={({ pressed }) => [
+            styles.addBtn,
+            { backgroundColor: colors.primary },
+            pressed && styles.pressed,
+          ]}
+        >
           <Plus size={20} color={colors.textInverse} strokeWidth={2.5} />
-        </TouchableOpacity>
+        </Pressable>
       </View>
 
       <ScrollView
@@ -100,7 +113,7 @@ export function AlertsScreen({ navigation }: Props) {
           data={filteredAlerts}
           keyExtractor={(item) => item.id}
           renderItem={renderAlert}
-          contentContainerStyle={{ paddingHorizontal: spacing.base, paddingBottom: insets.bottom + 90 }}
+          contentContainerStyle={listContentContainerStyle}
           showsVerticalScrollIndicator={false}
           onScroll={handleScroll}
           scrollEventThrottle={16}
@@ -128,6 +141,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 10,
+    borderCurve: 'continuous',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -142,5 +156,8 @@ const styles = StyleSheet.create({
   },
   list: {
     paddingHorizontal: spacing.base,
+  },
+  pressed: {
+    opacity: 0.8,
   },
 });

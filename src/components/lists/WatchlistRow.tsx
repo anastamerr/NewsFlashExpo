@@ -1,5 +1,5 @@
 import React, { memo, useCallback } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -13,8 +13,6 @@ import { SparkLine } from '@/components/charts/SparkLine';
 import { getSentimentLabel } from '@/utils/sentiment';
 import { ANIMATION } from '@/constants/app';
 import type { WatchlistItem } from '@/types/api';
-
-const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
 
 const TYPE_ICONS = {
   company: Building2,
@@ -51,47 +49,53 @@ export const WatchlistRow = memo(function WatchlistRow({ item, onPress }: Props)
   const sentimentVariant = sentimentLabel === 'positive' ? 'success' : sentimentLabel === 'negative' ? 'danger' : 'warning';
 
   return (
-    <AnimatedTouchable
+    <Pressable
       onPress={handlePress}
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
-      activeOpacity={0.8}
       accessibilityRole="button"
       accessibilityLabel={`${item.name}${item.symbol ? `, ${item.symbol}` : ''}, sentiment ${sentimentLabel}`}
-      style={[
-        animatedStyle,
-        styles.container,
-        { backgroundColor: colors.surface },
-      ]}
+      style={styles.pressable}
     >
-      <View style={[styles.iconContainer, { backgroundColor: colors.primary + '15' }]}>
-        <Icon size={20} color={colors.primary} strokeWidth={1.8} />
-      </View>
-      <View style={styles.info}>
-        <Text style={[typePresets.h3, { color: colors.text }]} numberOfLines={1}>
-          {item.name}
-        </Text>
-        <View style={styles.meta}>
-          {item.symbol && (
-            <Text style={[typePresets.monoSm, { color: colors.textTertiary }]}>
-              {item.symbol}
+      {({ pressed }) => (
+        <Animated.View
+          style={[
+            animatedStyle,
+            styles.container,
+            { backgroundColor: colors.surface },
+            pressed && styles.pressed,
+          ]}
+        >
+          <View style={[styles.iconContainer, { backgroundColor: colors.primary + '15' }]}>
+            <Icon size={20} color={colors.primary} strokeWidth={1.8} />
+          </View>
+          <View style={styles.info}>
+            <Text style={[typePresets.h3, { color: colors.text }]} numberOfLines={1}>
+              {item.name}
             </Text>
-          )}
-          {item.articleCount !== undefined && (
-            <Text style={[typePresets.bodySm, { color: colors.textTertiary }]}>
-              {item.articleCount} articles
-            </Text>
-          )}
-        </View>
-      </View>
-      <SparkLine
-        data={item.sparkData ?? [1, 2, 1.5, 3, 2.5, 3.2, 2.8]}
-        width={50}
-        height={24}
-        color={sentimentLabel === 'positive' ? colors.sentimentPositive : sentimentLabel === 'negative' ? colors.sentimentNegative : colors.primary}
-      />
-      <Badge label={sentimentLabel} variant={sentimentVariant} small />
-    </AnimatedTouchable>
+            <View style={styles.meta}>
+              {item.symbol ? (
+                <Text style={[typePresets.monoSm, { color: colors.textTertiary }]}>
+                  {item.symbol}
+                </Text>
+              ) : null}
+              {item.articleCount !== undefined ? (
+                <Text style={[typePresets.bodySm, { color: colors.textTertiary }]}>
+                  {item.articleCount} articles
+                </Text>
+              ) : null}
+            </View>
+          </View>
+          <SparkLine
+            data={item.sparkData ?? [1, 2, 1.5, 3, 2.5, 3.2, 2.8]}
+            width={50}
+            height={24}
+            color={sentimentLabel === 'positive' ? colors.sentimentPositive : sentimentLabel === 'negative' ? colors.sentimentNegative : colors.primary}
+          />
+          <Badge label={sentimentLabel} variant={sentimentVariant} small />
+        </Animated.View>
+      )}
+    </Pressable>
   );
 });
 
@@ -101,13 +105,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: spacing.base,
     borderRadius: radius.md,
+    borderCurve: 'continuous',
     marginBottom: spacing.sm,
     gap: spacing.sm,
+  },
+  pressable: {
+    borderRadius: radius.md,
+    borderCurve: 'continuous',
+  },
+  pressed: {
+    opacity: 0.8,
   },
   iconContainer: {
     width: 40,
     height: 40,
     borderRadius: radius.sm,
+    borderCurve: 'continuous',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: spacing.md,

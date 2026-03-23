@@ -28,11 +28,12 @@ import { useAuthStore } from '@/store/authStore';
 
 function AppContent() {
   const { colors, isDark } = useTheme();
-  const { bootstrap, isBootstrapping } = useAuthStore();
+  const bootstrap = useAuthStore((state) => state.bootstrap);
+  const isBootstrapping = useAuthStore((state) => state.isBootstrapping);
 
   useEffect(() => {
     bootstrap();
-  }, []);
+  }, [bootstrap]);
 
   if (isBootstrapping) {
     return (

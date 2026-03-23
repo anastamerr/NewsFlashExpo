@@ -21,11 +21,11 @@ export function TrendIndicator({ value, label }: Props) {
       <Text style={[typePresets.labelSm, { color }]}>
         {value > 0 ? '+' : ''}{value.toFixed(1)}%
       </Text>
-      {label && (
+      {label ? (
         <Text style={[typePresets.labelSm, { color: colors.textTertiary }]}>
           {label}
         </Text>
-      )}
+      ) : null}
     </View>
   );
 }

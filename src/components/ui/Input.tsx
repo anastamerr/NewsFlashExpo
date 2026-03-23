@@ -53,11 +53,11 @@ export function Input({
 
   return (
     <View style={styles.wrapper}>
-      {label && (
+      {label ? (
         <Text style={[typePresets.label, { color: colors.textSecondary, marginBottom: spacing.xs }]}>
           {label}
         </Text>
-      )}
+      ) : null}
       <AnimatedView
         style={[
           styles.inputContainer,
@@ -65,7 +65,7 @@ export function Input({
           borderStyle,
         ]}
       >
-        {leftIcon && <View style={styles.iconLeft}>{leftIcon}</View>}
+        {leftIcon ? <View style={styles.iconLeft}>{leftIcon}</View> : null}
         <TextInput
           {...props}
           onFocus={handleFocus}
@@ -82,18 +82,18 @@ export function Input({
             style,
           ]}
         />
-        {rightIcon && <View style={styles.iconRight}>{rightIcon}</View>}
+        {rightIcon ? <View style={styles.iconRight}>{rightIcon}</View> : null}
       </AnimatedView>
-      {error && (
+      {error ? (
         <Text style={[typePresets.bodySm, { color: colors.danger, marginTop: spacing.xs }]}>
           {error}
         </Text>
-      )}
-      {hint && !error && (
+      ) : null}
+      {hint && !error ? (
         <Text style={[typePresets.bodySm, { color: colors.textTertiary, marginTop: spacing.xs }]}>
           {hint}
         </Text>
-      )}
+      ) : null}
     </View>
   );
 }

@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback, useRef } from 'react';
-import { View, Text, StyleSheet, LayoutAnimation, UIManager, Platform } from 'react-native';
+import { View, Text, StyleSheet, LayoutAnimation, UIManager, Platform, Pressable, ScrollView } from 'react-native';
 import Animated, { FadeInDown, FadeIn, FadeOut } from 'react-native-reanimated';
 import { TrendingUp, TrendingDown, Minus, LayoutGrid, List, SlidersHorizontal, Check } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -20,7 +20,6 @@ import type { Article } from '@/types/api';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { BrowseStackParamList } from '@/types/navigation';
 import { useNavigation } from '@react-navigation/native';
-import { TouchableOpacity, ScrollView } from 'react-native';
 
 type Nav = NativeStackNavigationProp<BrowseStackParamList, 'Browse'>;
 
@@ -96,6 +95,13 @@ export function BrowseScreen() {
       return true;
     });
   }, [debouncedSearch, selectedSource, selectedSentiment]);
+  const listContentContainerStyle = useMemo(
+    () => ({
+      paddingHorizontal: spacing.base,
+      paddingBottom: insets.bottom + 90,
+    }),
+    [insets.bottom],
+  );
 
   const handleArticlePress = useCallback((article: Article) => {
     navigation.navigate('ArticleDetail', { articleId: article.id });
@@ -121,18 +127,26 @@ export function BrowseScreen() {
       <View style={styles.header}>
         <Text style={[typePresets.h1, { color: colors.text }]}>Browse</Text>
         <View style={styles.viewToggle}>
-          <TouchableOpacity
+          <Pressable
             onPress={() => switchViewMode('expanded')}
-            style={[styles.toggleBtn, viewMode === 'expanded' && { backgroundColor: colors.primary + '20' }]}
+            style={({ pressed }) => [
+              styles.toggleBtn,
+              viewMode === 'expanded' && { backgroundColor: colors.primary + '20' },
+              pressed && styles.pressed,
+            ]}
           >
             <LayoutGrid size={18} color={viewMode === 'expanded' ? colors.primary : colors.textTertiary} strokeWidth={2} />
-          </TouchableOpacity>
-          <TouchableOpacity
+          </Pressable>
+          <Pressable
             onPress={() => switchViewMode('compact')}
-            style={[styles.toggleBtn, viewMode === 'compact' && { backgroundColor: colors.primary + '20' }]}
+            style={({ pressed }) => [
+              styles.toggleBtn,
+              viewMode === 'compact' && { backgroundColor: colors.primary + '20' },
+              pressed && styles.pressed,
+            ]}
           >
             <List size={18} color={viewMode === 'compact' ? colors.primary : colors.textTertiary} strokeWidth={2} />
-          </TouchableOpacity>
+          </Pressable>
         </View>
       </View>
 
@@ -141,10 +155,9 @@ export function BrowseScreen() {
         <View style={styles.searchBarWrapper}>
           <SearchBar value={search} onChangeText={setSearch} placeholder="Search articles..." />
         </View>
-        <TouchableOpacity
+        <Pressable
           onPress={() => setShowSentimentMenu((v) => !v)}
-          activeOpacity={0.7}
-          style={[
+          style={({ pressed }) => [
             styles.filterBtn,
             {
               backgroundColor: selectedSentiment !== 'All'
@@ -154,6 +167,7 @@ export function BrowseScreen() {
                 ? SENTIMENT_OPTIONS.find((o) => o.key === selectedSentiment)!.color
                 : colors.border,
             },
+            pressed && styles.pressed,
           ]}
         >
           <SlidersHorizontal
@@ -165,10 +179,10 @@ export function BrowseScreen() {
             }
             strokeWidth={2}
           />
-        </TouchableOpacity>
+        </Pressable>
       </View>
 
-      {showSentimentMenu && (
+      {showSentimentMenu ? (
         <Animated.View
           entering={FadeIn.duration(150)}
           exiting={FadeOut.duration(100)}
@@ -178,24 +192,24 @@ export function BrowseScreen() {
             const active = selectedSentiment === opt.key;
             const optColor = opt.key === 'All' ? colors.text : opt.color;
             return (
-              <TouchableOpacity
+              <Pressable
                 key={opt.key}
                 onPress={() => {
                   selectionTap();
                   setSelectedSentiment(opt.key);
                   setShowSentimentMenu(false);
                 }}
-                activeOpacity={0.7}
-                style={[
+                style={({ pressed }) => [
                   styles.sentimentMenuItem,
                   active && { backgroundColor: (opt.key === 'All' ? colors.primary : opt.color) + '12' },
+                  pressed && styles.pressed,
                 ]}
               >
-                {opt.key !== 'All' && React.createElement(opt.Icon, {
+                {opt.key !== 'All' ? React.createElement(opt.Icon, {
                   size: 16,
                   color: active ? optColor : colors.textSecondary,
                   strokeWidth: 2,
-                })}
+                }) : null}
                 <Text
                   style={[
                     typePresets.body,
@@ -208,14 +222,14 @@ export function BrowseScreen() {
                 >
                   {opt.label}
                 </Text>
-                {active && (
+                {active ? (
                   <Check size={16} color={optColor} strokeWidth={2.5} />
-                )}
-              </TouchableOpacity>
+                ) : null}
+              </Pressable>
             );
           })}
         </Animated.View>
-      )}
+      ) : null}
 
       {/* Source filters */}
       <ScrollView
@@ -253,7 +267,7 @@ export function BrowseScreen() {
           extraData={viewMode}
           keyExtractor={(item) => item.id}
           renderItem={renderArticle}
-          contentContainerStyle={{ paddingHorizontal: spacing.base, paddingBottom: insets.bottom + 90 }}
+          contentContainerStyle={listContentContainerStyle}
           showsVerticalScrollIndicator={false}
           onScroll={handleScroll}
           scrollEventThrottle={16}
@@ -285,6 +299,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 10,
+    borderCurve: 'continuous',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -302,6 +317,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: radius.md,
+    borderCurve: 'continuous',
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
@@ -310,6 +326,7 @@ const styles = StyleSheet.create({
     marginHorizontal: spacing.base,
     marginBottom: spacing.sm,
     borderRadius: radius.md,
+    borderCurve: 'continuous',
     borderWidth: 1,
     overflow: 'hidden',
     ...shadows.md,
@@ -334,4 +351,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.base,
   },
   articleItem: {},
+  pressed: {
+    opacity: 0.8,
+  },
 });

@@ -34,7 +34,7 @@ export function Badge({ label, variant = 'neutral', dot = false, small = false }
         small && styles.small,
       ]}
     >
-      {dot && <View style={[styles.dot, { backgroundColor: color }]} />}
+      {dot ? <View style={[styles.dot, { backgroundColor: color }]} /> : null}
       <Text
         style={[
           small ? typePresets.labelXs : typePresets.labelSm,

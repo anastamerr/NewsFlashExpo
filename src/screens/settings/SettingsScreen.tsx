@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import {
   X, User, Palette, Bell, Radio, Users, Info, LogOut,
@@ -33,31 +33,31 @@ function SettingsRow({
 }) {
   const { colors } = useTheme();
   return (
-    <TouchableOpacity
+    <Pressable
       onPress={onPress}
       disabled={!onPress && !rightElement}
-      activeOpacity={0.7}
-      style={styles.settingsRow}
+      style={({ pressed }) => [styles.settingsRow, pressed && styles.pressed]}
     >
       <Icon size={20} color={danger ? colors.danger : colors.textSecondary} strokeWidth={1.8} />
       <Text style={[typePresets.body, { color: danger ? colors.danger : colors.text, flex: 1 }]}>
         {label}
       </Text>
-      {value && (
+      {value ? (
         <Text style={[typePresets.bodySm, { color: colors.textTertiary, marginRight: spacing.sm }]}>
           {value}
         </Text>
-      )}
+      ) : null}
       {rightElement}
-      {onPress && !rightElement && <ChevronRight size={18} color={colors.textTertiary} strokeWidth={1.8} />}
-    </TouchableOpacity>
+      {onPress && !rightElement ? <ChevronRight size={18} color={colors.textTertiary} strokeWidth={1.8} /> : null}
+    </Pressable>
   );
 }
 
 export function SettingsScreen({ navigation }: Props) {
-  const { colors, mode, setMode, isDark, toggleTheme } = useTheme();
+  const { colors, mode, setMode } = useTheme();
   const insets = useSafeAreaInsets();
-  const { user, signOut } = useAuthStore();
+  const user = useAuthStore((state) => state.user);
+  const signOut = useAuthStore((state) => state.signOut);
 
   const handleSignOut = async () => {
     await signOut();
@@ -67,12 +67,18 @@ export function SettingsScreen({ navigation }: Props) {
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]}>
         <Text style={[typePresets.h1, { color: colors.text }]}>Settings</Text>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.closeBtn} accessibilityRole="button" accessibilityLabel="Close settings">
+        <Pressable
+          onPress={() => navigation.goBack()}
+          style={({ pressed }) => [styles.closeBtn, pressed && styles.pressed]}
+          accessibilityRole="button"
+          accessibilityLabel="Close settings"
+        >
           <X size={22} color={colors.textSecondary} strokeWidth={2} />
-        </TouchableOpacity>
+        </Pressable>
       </View>
 
       <ScrollView
+        contentInsetAdjustmentBehavior="automatic"
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + spacing.xxl }]}
       >
@@ -107,25 +113,26 @@ export function SettingsScreen({ navigation }: Props) {
                 { key: 'dark' as const, label: 'Dark', Icon: Moon },
                 { key: 'system' as const, label: 'System', Icon: Monitor },
               ].map((opt) => (
-                <TouchableOpacity
+                <Pressable
                   key={opt.key}
                   onPress={() => setMode(opt.key)}
                   accessibilityRole="radio"
                   accessibilityLabel={`${opt.label} theme`}
                   accessibilityState={{ selected: mode === opt.key }}
-                  style={[
+                  style={({ pressed }) => [
                     styles.themeOption,
                     {
                       backgroundColor: mode === opt.key ? colors.primary + '20' : colors.muted,
                       borderColor: mode === opt.key ? colors.primary : 'transparent',
                     },
+                    pressed && styles.pressed,
                   ]}
                 >
                   <opt.Icon size={18} color={mode === opt.key ? colors.primary : colors.textSecondary} strokeWidth={2} />
                   <Text style={[typePresets.labelSm, { color: mode === opt.key ? colors.primary : colors.textSecondary }]}>
                     {opt.label}
                   </Text>
-                </TouchableOpacity>
+                </Pressable>
               ))}
             </View>
           </Card>
@@ -221,6 +228,7 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
     paddingVertical: spacing.md,
     borderRadius: radius.sm,
+    borderCurve: 'continuous',
     borderWidth: 1.5,
   },
   settingsRow: {
@@ -228,5 +236,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.md,
     paddingVertical: spacing.md,
+  },
+  pressed: {
+    opacity: 0.8,
   },
 });

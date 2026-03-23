@@ -1,10 +1,9 @@
 import React, { useCallback } from 'react';
 import {
-  TouchableOpacity,
+  Pressable,
   Text,
   ActivityIndicator,
   StyleSheet,
-  type ViewStyle,
   type TextStyle,
 } from 'react-native';
 import Animated, {
@@ -16,8 +15,6 @@ import { useTheme, spacing, radius } from '@/theme';
 import { typePresets } from '@/theme/typography';
 import { lightTap } from '@/utils/haptics';
 import { ANIMATION } from '@/constants/app';
-
-const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
 
 type Variant = 'primary' | 'secondary' | 'ghost' | 'danger';
 type Size = 'sm' | 'md' | 'lg';
@@ -94,44 +91,50 @@ export function Button({
   };
 
   return (
-    <AnimatedTouchable
+    <Pressable
       onPress={handlePress}
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
-      activeOpacity={0.8}
       disabled={disabled || loading}
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityState={{ disabled: disabled || loading, busy: loading }}
-      style={[
-        animatedStyle,
-        styles.button,
-        {
-          backgroundColor: bgColor[variant],
-          height: heights[size],
-          borderColor: borderColor[variant],
-          borderWidth: borderColor[variant] ? 1.5 : 0,
-          opacity: disabled ? 0.5 : 1,
-        },
-        fullWidth && styles.fullWidth,
-      ]}
+      style={fullWidth ? styles.fullWidth : undefined}
     >
-      {loading ? (
-        <ActivityIndicator size="small" color={textColor[variant]} />
-      ) : (
-        <>
-          {icon}
-          <Text
-            style={[
-              fontSizes[size],
-              { color: textColor[variant], fontFamily: typePresets.label.fontFamily },
-            ]}
-          >
-            {label}
-          </Text>
-        </>
+      {({ pressed }) => (
+        <Animated.View
+          style={[
+            animatedStyle,
+            styles.button,
+            {
+              backgroundColor: bgColor[variant],
+              height: heights[size],
+              borderColor: borderColor[variant],
+              borderWidth: borderColor[variant] ? 1.5 : 0,
+              opacity: disabled ? 0.5 : 1,
+            },
+            pressed && styles.pressed,
+            fullWidth && styles.fullWidth,
+          ]}
+        >
+          {loading ? (
+            <ActivityIndicator size="small" color={textColor[variant]} />
+          ) : (
+            <>
+              {icon}
+              <Text
+                style={[
+                  fontSizes[size],
+                  { color: textColor[variant], fontFamily: typePresets.label.fontFamily },
+                ]}
+              >
+                {label}
+              </Text>
+            </>
+          )}
+        </Animated.View>
       )}
-    </AnimatedTouchable>
+    </Pressable>
   );
 }
 
@@ -143,6 +146,10 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     paddingHorizontal: spacing.lg,
     borderRadius: radius.md,
+    borderCurve: 'continuous',
+  },
+  pressed: {
+    opacity: 0.8,
   },
   fullWidth: {
     width: '100%',

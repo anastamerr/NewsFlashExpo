@@ -1,5 +1,5 @@
 import React, { useMemo, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
 import { FlashList } from '@shopify/flash-list';
 import { ArrowLeft } from 'lucide-react-native';
@@ -87,18 +87,30 @@ export function WatchlistDetailScreen({ route, navigation }: Props) {
       <ArticleCard article={article} onPress={handleArticlePress} />
     </Animated.View>
   ), [handleArticlePress]);
+  const listContentContainerStyle = useMemo(
+    () => ({
+      paddingHorizontal: spacing.base,
+      paddingBottom: insets.bottom + spacing.xxl,
+    }),
+    [insets.bottom],
+  );
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerBtn} accessibilityRole="button" accessibilityLabel="Go back">
+        <Pressable
+          onPress={() => navigation.goBack()}
+          style={({ pressed }) => [styles.headerBtn, pressed && styles.pressed]}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+        >
           <ArrowLeft size={22} color={colors.text} strokeWidth={2} />
-        </TouchableOpacity>
+        </Pressable>
         <View style={styles.headerCenter}>
           <Text style={[typePresets.h3, { color: colors.text }]} numberOfLines={1}>{name}</Text>
-          {item?.symbol && (
+          {item?.symbol ? (
             <Text style={[typePresets.monoSm, { color: colors.textTertiary }]}>{item.symbol}</Text>
-          )}
+          ) : null}
         </View>
         <View style={{ width: 40 }} />
       </View>
@@ -108,7 +120,7 @@ export function WatchlistDetailScreen({ route, navigation }: Props) {
         keyExtractor={(a) => a.id}
         renderItem={renderArticle}
         ListHeaderComponent={renderHeader}
-        contentContainerStyle={{ paddingHorizontal: spacing.base, paddingBottom: insets.bottom + spacing.xxl }}
+        contentContainerStyle={listContentContainerStyle}
         showsVerticalScrollIndicator={false}
         refreshing={refreshing}
         onRefresh={onRefresh}
@@ -157,5 +169,8 @@ const styles = StyleSheet.create({
   },
   gaugeContainer: {
     marginTop: spacing.lg,
+  },
+  pressed: {
+    opacity: 0.8,
   },
 });

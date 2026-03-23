@@ -1,5 +1,5 @@
 import React, { useCallback } from 'react';
-import { TouchableOpacity, Text, StyleSheet } from 'react-native';
+import { Pressable, Text, StyleSheet } from 'react-native';
 import { useTheme, spacing, radius } from '@/theme';
 import { typePresets } from '@/theme/typography';
 import { selectionTap } from '@/utils/haptics';
@@ -20,18 +20,18 @@ export function Chip({ label, selected = false, onPress, count }: Props) {
   }, [onPress]);
 
   return (
-    <TouchableOpacity
+    <Pressable
       onPress={handlePress}
-      activeOpacity={0.7}
       accessibilityRole="button"
       accessibilityLabel={`${label}${count !== undefined ? `, ${count} items` : ''}`}
       accessibilityState={{ selected }}
-      style={[
+      style={({ pressed }) => [
         styles.chip,
         {
           backgroundColor: selected ? colors.primary + '22' : colors.surface,
           borderColor: selected ? colors.primary : colors.border,
         },
+        pressed && styles.pressed,
       ]}
     >
       <Text
@@ -43,7 +43,7 @@ export function Chip({ label, selected = false, onPress, count }: Props) {
         {label}
         {count !== undefined && ` (${count})`}
       </Text>
-    </TouchableOpacity>
+    </Pressable>
   );
 }
 
@@ -52,6 +52,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs + 2,
     borderRadius: radius.full,
+    borderCurve: 'continuous',
     borderWidth: 1,
+  },
+  pressed: {
+    opacity: 0.7,
   },
 });

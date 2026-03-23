@@ -1,8 +1,9 @@
-import React from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
+import React, { useMemo } from 'react';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { ArrowLeft, UserPlus } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { FlashList } from '@shopify/flash-list';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Toggle } from '@/components/ui/Toggle';
@@ -23,6 +24,13 @@ const MOCK_USERS = [
 export function UsersScreen({ navigation }: Props) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
+  const listContentContainerStyle = useMemo(
+    () => ({
+      paddingHorizontal: spacing.base,
+      paddingBottom: insets.bottom + spacing.xxl,
+    }),
+    [insets.bottom],
+  );
 
   const renderUser = ({ item, index }: { item: typeof MOCK_USERS[0]; index: number }) => {
     const roleVariant = item.role.includes('superuser') ? 'primary' : 'neutral';
@@ -50,20 +58,31 @@ export function UsersScreen({ navigation }: Props) {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerBtn} accessibilityRole="button" accessibilityLabel="Go back">
+        <Pressable
+          onPress={() => navigation.goBack()}
+          style={({ pressed }) => [styles.headerBtn, pressed && styles.pressed]}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+        >
           <ArrowLeft size={22} color={colors.text} strokeWidth={2} />
-        </TouchableOpacity>
+        </Pressable>
         <Text style={[typePresets.h3, { color: colors.text }]}>Users</Text>
-        <TouchableOpacity style={[styles.addBtn, { backgroundColor: colors.primary }]}>
+        <Pressable
+          style={({ pressed }) => [
+            styles.addBtn,
+            { backgroundColor: colors.primary },
+            pressed && styles.pressed,
+          ]}
+        >
           <UserPlus size={18} color={colors.textInverse} strokeWidth={2} />
-        </TouchableOpacity>
+        </Pressable>
       </View>
 
-      <FlatList
+      <FlashList
         data={MOCK_USERS}
         keyExtractor={(item) => item.id}
         renderItem={renderUser}
-        contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + spacing.xxl }]}
+        contentContainerStyle={listContentContainerStyle}
         showsVerticalScrollIndicator={false}
       />
     </View>
@@ -89,6 +108,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 10,
+    borderCurve: 'continuous',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -113,5 +133,8 @@ const styles = StyleSheet.create({
   userInfo: {
     flex: 1,
     gap: 2,
+  },
+  pressed: {
+    opacity: 0.8,
   },
 });

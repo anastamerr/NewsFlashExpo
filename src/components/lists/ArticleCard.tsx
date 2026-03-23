@@ -1,5 +1,5 @@
 import React, { memo, useCallback } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -12,8 +12,6 @@ import { getSentimentLabel } from '@/utils/sentiment';
 import { timeAgo, formatSentiment } from '@/utils/format';
 import { ANIMATION } from '@/constants/app';
 import type { Article } from '@/types/api';
-
-const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
 
 interface Props {
   article: Article;
@@ -49,100 +47,112 @@ export const ArticleCard = memo(function ArticleCard({
 
   if (mode === 'compact') {
     return (
-      <AnimatedTouchable
+      <Pressable
         onPress={handlePress}
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
-        activeOpacity={0.8}
         accessibilityRole="button"
         accessibilityLabel={`${article.title}, ${article.source}, sentiment ${sentimentLabel}`}
-        style={[
-          animatedStyle,
-          styles.compactContainer,
-          { borderBottomColor: colors.borderSubtle },
-        ]}
+        style={styles.pressable}
       >
-        <View style={styles.compactLeft}>
-          <Text
-            style={[typePresets.body, { color: colors.text }]}
-            numberOfLines={1}
+        {({ pressed }) => (
+          <Animated.View
+            style={[
+              animatedStyle,
+              styles.compactContainer,
+              { borderBottomColor: colors.borderSubtle },
+              pressed && styles.pressed,
+            ]}
           >
-            {article.title}
-          </Text>
-          <View style={styles.compactMeta}>
-            <Text style={[typePresets.bodySm, { color: colors.textTertiary }]}>
-              {article.source}
-            </Text>
-            <Text style={[typePresets.bodySm, { color: colors.textTertiary }]}>
-              {timeAgo(article.date)}
-            </Text>
-          </View>
-        </View>
-        <Badge
-          label={formatSentiment(article.sentiment)}
-          variant={sentimentVariant}
-          small
-        />
-      </AnimatedTouchable>
+            <View style={styles.compactLeft}>
+              <Text
+                style={[typePresets.body, { color: colors.text }]}
+                numberOfLines={1}
+              >
+                {article.title}
+              </Text>
+              <View style={styles.compactMeta}>
+                <Text style={[typePresets.bodySm, { color: colors.textTertiary }]}>
+                  {article.source}
+                </Text>
+                <Text style={[typePresets.bodySm, { color: colors.textTertiary }]}>
+                  {timeAgo(article.date)}
+                </Text>
+              </View>
+            </View>
+            <Badge
+              label={formatSentiment(article.sentiment)}
+              variant={sentimentVariant}
+              small
+            />
+          </Animated.View>
+        )}
+      </Pressable>
     );
   }
 
   return (
-    <AnimatedTouchable
+    <Pressable
       onPress={handlePress}
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
-      activeOpacity={0.8}
       accessibilityRole="button"
       accessibilityLabel={`${article.title}, ${article.source}, sentiment ${sentimentLabel}`}
-      style={[
-        animatedStyle,
-        styles.expandedContainer,
-        { backgroundColor: colors.surface },
-      ]}
+      style={styles.pressable}
     >
-      <View style={styles.expandedHeader}>
-        <View style={[styles.sourceDot, { backgroundColor: colors.primary }]} />
-        <Text style={[typePresets.labelSm, { color: colors.textSecondary }]}>
-          {article.source}
-        </Text>
-        <Text style={[typePresets.labelSm, { color: colors.textTertiary }]}>
-          {timeAgo(article.date)}
-        </Text>
-      </View>
-
-      <Text
-        style={[typePresets.articleTitle, { color: colors.text, marginTop: spacing.sm }]}
-        numberOfLines={2}
-      >
-        {article.title}
-      </Text>
-
-      {article.summary && (
-        <Text
-          style={[typePresets.bodySm, { color: colors.textSecondary, marginTop: spacing.xs }]}
-          numberOfLines={2}
+      {({ pressed }) => (
+        <Animated.View
+          style={[
+            animatedStyle,
+            styles.expandedContainer,
+            { backgroundColor: colors.surface },
+            pressed && styles.pressed,
+          ]}
         >
-          {article.summary}
-        </Text>
-      )}
-
-      <View style={styles.expandedFooter}>
-        <Badge label={sentimentLabel} variant={sentimentVariant} dot />
-        {article.tag && (
-          <View style={[styles.tag, { backgroundColor: colors.muted }]}>
-            <Text style={[typePresets.labelXs, { color: colors.textSecondary, textTransform: undefined }]}>
-              {article.tag}
+          <View style={styles.expandedHeader}>
+            <View style={[styles.sourceDot, { backgroundColor: colors.primary }]} />
+            <Text style={[typePresets.labelSm, { color: colors.textSecondary }]}>
+              {article.source}
+            </Text>
+            <Text style={[typePresets.labelSm, { color: colors.textTertiary }]}>
+              {timeAgo(article.date)}
             </Text>
           </View>
-        )}
-        {article.company && (
-          <Text style={[typePresets.labelSm, { color: colors.primary }]}>
-            {article.company}
+
+          <Text
+            style={[typePresets.articleTitle, { color: colors.text, marginTop: spacing.sm }]}
+            numberOfLines={2}
+          >
+            {article.title}
           </Text>
-        )}
-      </View>
-    </AnimatedTouchable>
+
+          {article.summary ? (
+            <Text
+              style={[typePresets.bodySm, { color: colors.textSecondary, marginTop: spacing.xs }]}
+              numberOfLines={2}
+            >
+              {article.summary}
+            </Text>
+          ) : null}
+
+          <View style={styles.expandedFooter}>
+            <Badge label={sentimentLabel} variant={sentimentVariant} dot />
+            {article.tag ? (
+              <View style={[styles.tag, { backgroundColor: colors.muted }]}>
+                <Text style={[typePresets.labelXs, { color: colors.textSecondary, textTransform: undefined }]}>
+                  {article.tag}
+                </Text>
+              </View>
+            ) : null}
+            {article.company ? (
+              <Text style={[typePresets.labelSm, { color: colors.primary }]}>
+                {article.company}
+              </Text>
+            ) : null}
+          </View>
+        </Animated.View>
+      )}
+    </Pressable>
   );
 });
 
@@ -163,8 +173,16 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     marginTop: spacing.xxs,
   },
+  pressable: {
+    borderRadius: radius.md,
+    borderCurve: 'continuous',
+  },
+  pressed: {
+    opacity: 0.8,
+  },
   expandedContainer: {
     borderRadius: radius.md,
+    borderCurve: 'continuous',
     padding: spacing.base,
     marginBottom: spacing.sm,
   },
@@ -188,5 +206,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     paddingVertical: 2,
     borderRadius: radius.xs,
+    borderCurve: 'continuous',
   },
 });

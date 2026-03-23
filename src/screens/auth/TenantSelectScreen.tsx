@@ -1,7 +1,8 @@
-import React, { useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList } from 'react-native';
+import React, { memo, useCallback } from 'react';
+import { View, Text, StyleSheet } from 'react-native';
 import Animated, { FadeInRight, FadeIn } from 'react-native-reanimated';
 import { ChevronRight, Building2 } from 'lucide-react-native';
+import { FlashList, type ListRenderItem } from '@shopify/flash-list';
 import { StatusBar } from 'expo-status-bar';
 import { ScreenContainer } from '@/components/layout/ScreenContainer';
 import { Card } from '@/components/ui/Card';
@@ -10,36 +11,54 @@ import { typePresets } from '@/theme/typography';
 import { useAuthStore } from '@/store/authStore';
 import type { TenantOption } from '@/types/api';
 
+const TenantCardItem = memo(function TenantCardItem({
+  item,
+  onSelectTenant,
+}: {
+  item: TenantOption;
+  onSelectTenant: (tenant: TenantOption) => void;
+}) {
+  const { colors } = useTheme();
+  const handlePress = useCallback(() => {
+    onSelectTenant(item);
+  }, [item, onSelectTenant]);
+
+  return (
+    <Card
+      variant="elevated"
+      onPress={handlePress}
+      style={styles.tenantCard}
+    >
+      <View style={styles.tenantRow}>
+        <View style={[styles.tenantIcon, { backgroundColor: colors.primary + '15' }]}>
+          <Building2 size={22} color={colors.primary} strokeWidth={1.8} />
+        </View>
+        <View style={styles.tenantInfo}>
+          <Text style={[typePresets.h3, { color: colors.text }]}>{item.tenant_name}</Text>
+          <Text style={[typePresets.bodySm, { color: colors.textSecondary }]}>
+            {item.role.replace(/-/g, ' ')}
+          </Text>
+        </View>
+        <ChevronRight size={20} color={colors.textTertiary} strokeWidth={1.8} />
+      </View>
+    </Card>
+  );
+});
+
 export function TenantSelectScreen() {
   const { colors } = useTheme();
-  const { tenants, selectTenant, isLoading } = useAuthStore();
+  const tenants = useAuthStore((state) => state.tenants);
+  const selectTenant = useAuthStore((state) => state.selectTenant);
 
   const handleSelect = useCallback(async (tenant: TenantOption) => {
     await selectTenant(tenant.tenant_id);
   }, [selectTenant]);
 
-  const renderTenant = useCallback(({ item, index }: { item: TenantOption; index: number }) => (
+  const renderTenant = useCallback<ListRenderItem<TenantOption>>(({ item, index }) => (
     <Animated.View entering={FadeInRight.delay(index * 80).springify().damping(15)}>
-      <Card
-        variant="elevated"
-        onPress={() => handleSelect(item)}
-        style={styles.tenantCard}
-      >
-        <View style={styles.tenantRow}>
-          <View style={[styles.tenantIcon, { backgroundColor: colors.primary + '15' }]}>
-            <Building2 size={22} color={colors.primary} strokeWidth={1.8} />
-          </View>
-          <View style={styles.tenantInfo}>
-            <Text style={[typePresets.h3, { color: colors.text }]}>{item.tenant_name}</Text>
-            <Text style={[typePresets.bodySm, { color: colors.textSecondary }]}>
-              {item.role.replace(/-/g, ' ')}
-            </Text>
-          </View>
-          <ChevronRight size={20} color={colors.textTertiary} strokeWidth={1.8} />
-        </View>
-      </Card>
+      <TenantCardItem item={item} onSelectTenant={handleSelect} />
     </Animated.View>
-  ), [colors, handleSelect]);
+  ), [handleSelect]);
 
   return (
     <ScreenContainer scrollable={false}>
@@ -53,7 +72,7 @@ export function TenantSelectScreen() {
         </Text>
       </Animated.View>
 
-      <FlatList
+      <FlashList
         data={tenants}
         keyExtractor={(item) => item.tenant_id}
         renderItem={renderTenant}

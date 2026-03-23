@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, ScrollView, StyleSheet, RefreshControl } from 'react-native';
+import { View, ScrollView, StyleSheet, RefreshControl, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme, spacing } from '@/theme';
 import { useScrollDirection } from '@/hooks/useScrollDirection';
@@ -44,8 +44,9 @@ export function ScreenContainer({
   return (
     <ScrollView
       style={[styles.container, { backgroundColor: colors.background }]}
+      contentInsetAdjustmentBehavior={edges.includes('top') ? 'automatic' : 'never'}
       contentContainerStyle={[
-        edges.includes('top') && { paddingTop: insets.top },
+        Platform.OS === 'android' && edges.includes('top') ? { paddingTop: insets.top } : null,
         { paddingBottom: insets.bottom + 90 },
         padded && styles.padded,
       ]}

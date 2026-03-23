@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
 import { ArrowLeft, Share2, Bookmark } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -30,20 +30,26 @@ export function ArticleDetailScreen({ route, navigation }: Props) {
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerBtn} accessibilityRole="button" accessibilityLabel="Go back">
+        <Pressable
+          onPress={() => navigation.goBack()}
+          style={({ pressed }) => [styles.headerBtn, pressed && styles.pressed]}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+        >
           <ArrowLeft size={22} color={colors.text} strokeWidth={2} />
-        </TouchableOpacity>
+        </Pressable>
         <View style={styles.headerActions}>
-          <TouchableOpacity style={styles.headerBtn}>
+          <Pressable style={({ pressed }) => [styles.headerBtn, pressed && styles.pressed]}>
             <Bookmark size={20} color={colors.textSecondary} strokeWidth={1.8} />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.headerBtn}>
+          </Pressable>
+          <Pressable style={({ pressed }) => [styles.headerBtn, pressed && styles.pressed]}>
             <Share2 size={20} color={colors.textSecondary} strokeWidth={1.8} />
-          </TouchableOpacity>
+          </Pressable>
         </View>
       </View>
 
       <ScrollView
+        contentInsetAdjustmentBehavior="automatic"
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + TAB_BAR_HEIGHT + spacing.xxl }]}
       >
@@ -102,9 +108,9 @@ export function ArticleDetailScreen({ route, navigation }: Props) {
 
         {/* Tags */}
         <Animated.View entering={FadeInDown.delay(400).springify()} style={styles.tags}>
-          {article.company && <Chip label={article.company} />}
-          {article.tag && <Chip label={article.tag} />}
-          {article.focusType && <Chip label={article.focusType} />}
+          {article.company ? <Chip label={article.company} /> : null}
+          {article.tag ? <Chip label={article.tag} /> : null}
+          {article.focusType ? <Chip label={article.focusType} /> : null}
         </Animated.View>
 
         {/* AI Summary */}
@@ -187,5 +193,8 @@ const styles = StyleSheet.create({
   },
   aiCard: {
     marginTop: spacing.xl,
+  },
+  pressed: {
+    opacity: 0.8,
   },
 });

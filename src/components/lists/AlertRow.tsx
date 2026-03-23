@@ -1,5 +1,5 @@
 import React, { memo, useCallback } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -13,8 +13,6 @@ import { typePresets } from '@/theme/typography';
 import { timeAgo } from '@/utils/format';
 import { ANIMATION } from '@/constants/app';
 import type { AlertPublic } from '@/types/api';
-
-const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
 
 interface Props {
   alert: AlertPublic;
@@ -64,71 +62,85 @@ export const AlertRow = memo(function AlertRow({ alert, onPress }: Props) {
   const handlePress = useCallback(() => onPress(alert), [alert, onPress]);
 
   return (
-    <AnimatedTouchable
+    <Pressable
       onPress={handlePress}
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
-      activeOpacity={0.8}
       accessibilityRole="button"
       accessibilityLabel={`${alert.severity} alert: ${alert.title}${alert.isResolved ? ', resolved' : ''}`}
-      style={[
-        animatedStyle,
-        styles.container,
-        { backgroundColor: colors.surface },
-      ]}
+      style={styles.pressable}
     >
-      <View style={styles.content}>
-        <View style={styles.header}>
-          <Animated.View
-            style={[
-              styles.iconBadge,
-              { backgroundColor: config.color + '18' },
-              alert.severity === 'CRITICAL' && pulseStyle,
-            ]}
-          >
-            <config.Icon size={16} color={config.color} strokeWidth={2.5} />
-          </Animated.View>
-          <View style={styles.headerText}>
-            <Text style={[typePresets.labelXs, { color: config.color, textTransform: undefined }]}>
-              {alert.severity}
-            </Text>
-            <Text style={[typePresets.labelSm, { color: colors.textTertiary }]}>
-              {timeAgo(alert.createdAt)}
-            </Text>
-          </View>
-        </View>
-        <Text
-          style={[typePresets.h3, { color: colors.text, marginTop: spacing.sm }]}
-          numberOfLines={1}
+      {({ pressed }) => (
+        <Animated.View
+          style={[
+            animatedStyle,
+            styles.container,
+            { backgroundColor: colors.surface },
+            pressed && styles.pressed,
+          ]}
         >
-          {alert.title}
-        </Text>
-        <Text
-          style={[typePresets.bodySm, { color: colors.textSecondary, marginTop: spacing.xxs }]}
-          numberOfLines={2}
-        >
-          {alert.message}
-        </Text>
-        {alert.keywords.length > 0 && (
-          <View style={styles.keywords}>
-            {alert.keywords.slice(0, 3).map((kw) => (
-              <View key={kw} style={[styles.keyword, { backgroundColor: colors.muted }]}>
-                <Text style={[typePresets.labelXs, { color: colors.textSecondary, textTransform: undefined }]}>
-                  {kw}
+          <View style={styles.content}>
+            <View style={styles.header}>
+              <Animated.View
+                style={[
+                  styles.iconBadge,
+                  { backgroundColor: config.color + '18' },
+                  alert.severity === 'CRITICAL' ? pulseStyle : null,
+                ]}
+              >
+                <config.Icon size={16} color={config.color} strokeWidth={2.5} />
+              </Animated.View>
+              <View style={styles.headerText}>
+                <Text style={[typePresets.labelXs, { color: config.color, textTransform: undefined }]}>
+                  {alert.severity}
+                </Text>
+                <Text style={[typePresets.labelSm, { color: colors.textTertiary }]}>
+                  {timeAgo(alert.createdAt)}
                 </Text>
               </View>
-            ))}
+            </View>
+            <Text
+              style={[typePresets.h3, { color: colors.text, marginTop: spacing.sm }]}
+              numberOfLines={1}
+            >
+              {alert.title}
+            </Text>
+            <Text
+              style={[typePresets.bodySm, { color: colors.textSecondary, marginTop: spacing.xxs }]}
+              numberOfLines={2}
+            >
+              {alert.message}
+            </Text>
+            {alert.keywords.length > 0 ? (
+              <View style={styles.keywords}>
+                {alert.keywords.slice(0, 3).map((kw) => (
+                  <View key={kw} style={[styles.keyword, { backgroundColor: colors.muted }]}>
+                    <Text style={[typePresets.labelXs, { color: colors.textSecondary, textTransform: undefined }]}>
+                      {kw}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            ) : null}
           </View>
-        )}
-      </View>
-    </AnimatedTouchable>
+        </Animated.View>
+      )}
+    </Pressable>
   );
 });
 
 const styles = StyleSheet.create({
   container: {
     borderRadius: radius.md,
+    borderCurve: 'continuous',
     marginBottom: spacing.sm,
+  },
+  pressable: {
+    borderRadius: radius.md,
+    borderCurve: 'continuous',
+  },
+  pressed: {
+    opacity: 0.8,
   },
   content: {
     flex: 1,
@@ -143,6 +155,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: radius.sm,
+    borderCurve: 'continuous',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -161,5 +174,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     paddingVertical: 2,
     borderRadius: radius.xs,
+    borderCurve: 'continuous',
   },
 });

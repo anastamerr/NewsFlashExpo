@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, Pressable } from 'react-native';
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
 import { Settings, AlertTriangle } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
@@ -30,7 +30,6 @@ export function TodayScreen() {
   const navigation = useNavigation<Nav>();
   const rootNav = useNavigation<any>();
   const user = useAuthStore((s) => s.user);
-  const [refreshKey, setRefreshKey] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
 
   React.useEffect(() => {
@@ -39,7 +38,6 @@ export function TodayScreen() {
   }, []);
 
   const { refreshing, onRefresh } = useRefreshControl(async () => {
-    setRefreshKey((k) => k + 1);
     await new Promise((r) => setTimeout(r, 800));
   });
 
@@ -96,12 +94,16 @@ export function TodayScreen() {
             {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
           </Text>
         </View>
-        <TouchableOpacity
+        <Pressable
           onPress={() => rootNav.navigate('Settings')}
-          style={[styles.settingsBtn, { backgroundColor: colors.surface }]}
+          style={({ pressed }) => [
+            styles.settingsBtn,
+            { backgroundColor: colors.surface },
+            pressed && styles.pressed,
+          ]}
         >
           <Settings size={20} color={colors.textSecondary} strokeWidth={1.8} />
-        </TouchableOpacity>
+        </Pressable>
       </Animated.View>
 
       {/* Crisis Banner */}
@@ -179,12 +181,15 @@ export function TodayScreen() {
             const sparkColor = label === 'positive' ? colors.sentimentPositive : label === 'negative' ? colors.sentimentNegative : colors.primary;
             return (
               <Animated.View key={item.id} entering={FadeInDown.delay(750 + index * 50).springify()}>
-                <TouchableOpacity
-                  activeOpacity={0.7}
+                <Pressable
                   onPress={() => rootNav.navigate('Main', { screen: 'WatchlistTab' })}
                   accessibilityRole="button"
                   accessibilityLabel={`${item.name}, sentiment ${label}`}
-                  style={[styles.watchlistItem, { backgroundColor: colors.surface }]}
+                  style={({ pressed }) => [
+                    styles.watchlistItem,
+                    { backgroundColor: colors.surface },
+                    pressed && styles.pressed,
+                  ]}
                 >
                   <View style={{ flex: 1 }}>
                     <Text style={[typePresets.h3, { color: colors.text }]} numberOfLines={1}>{item.name}</Text>
@@ -201,7 +206,7 @@ export function TodayScreen() {
                   <Text style={[typePresets.monoSm, { color: sparkColor, width: 36, textAlign: 'right' }]}>
                     {(item.sentiment ?? 0) > 0 ? '+' : ''}{(item.sentiment ?? 0).toFixed(1)}
                   </Text>
-                </TouchableOpacity>
+                </Pressable>
               </Animated.View>
             );
           })}
@@ -222,6 +227,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 12,
+    borderCurve: 'continuous',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -262,6 +268,10 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     padding: spacing.base,
     borderRadius: 12,
+    borderCurve: 'continuous',
     marginBottom: spacing.sm,
+  },
+  pressed: {
+    opacity: 0.8,
   },
 });
