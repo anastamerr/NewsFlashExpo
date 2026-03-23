@@ -1,6 +1,13 @@
 import React, { useState } from 'react';
 import { View, TouchableOpacity, StyleSheet } from 'react-native';
-import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
+import {
+  NavigationContainer,
+  DefaultTheme,
+  DarkTheme,
+  createNavigationContainerRef,
+  type NavigationState,
+  type PartialState,
+} from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import Animated, {
   useSharedValue,
@@ -29,6 +36,18 @@ import type { RootStackParamList } from '@/types/navigation';
 
 const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
 const Stack = createNativeStackNavigator<RootStackParamList>();
+const navigationRef = createNavigationContainerRef<RootStackParamList>();
+
+function getActiveRouteName(state: NavigationState | PartialState<NavigationState>): string {
+  const route = state.routes[state.index ?? 0];
+  const nestedState = route.state as NavigationState | PartialState<NavigationState> | undefined;
+
+  if (nestedState) {
+    return getActiveRouteName(nestedState);
+  }
+
+  return route.name;
+}
 
 function ChatFab({ onPress }: { onPress: () => void }) {
   const { colors } = useTheme();
@@ -75,6 +94,7 @@ export function NavigationRoot() {
   const { colors, isDark } = useTheme();
   const { isAuthenticated, isBootstrapping, tenants, tenantId } = useAuthStore();
   const [chatVisible, setChatVisible] = useState(false);
+  const [activeRouteName, setActiveRouteName] = useState<string>();
 
   const navTheme = {
     ...(isDark ? DarkTheme : DefaultTheme),
@@ -89,11 +109,25 @@ export function NavigationRoot() {
   };
 
   const showAuth = !isAuthenticated;
+  const hideChatFab = activeRouteName === 'ArticleDetail';
 
   return (
     <ScrollDirectionProvider>
       <View style={styles.root}>
-        <NavigationContainer theme={navTheme}>
+        <NavigationContainer
+          ref={navigationRef}
+          theme={navTheme}
+          onReady={() => {
+            if (navigationRef.isReady()) {
+              setActiveRouteName(getActiveRouteName(navigationRef.getRootState()));
+            }
+          }}
+          onStateChange={(state) => {
+            if (state) {
+              setActiveRouteName(getActiveRouteName(state));
+            }
+          }}
+        >
           <Stack.Navigator screenOptions={{ headerShown: false }}>
             {showAuth ? (
               <Stack.Screen name="Auth" component={AuthStack} />
@@ -113,7 +147,7 @@ export function NavigationRoot() {
           </Stack.Navigator>
 
           {/* Chat FAB */}
-          {isAuthenticated && !chatVisible && (
+          {isAuthenticated && !chatVisible && !hideChatFab && (
             <ChatFab onPress={() => setChatVisible(true)} />
           )}
 

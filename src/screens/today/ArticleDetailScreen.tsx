@@ -15,6 +15,8 @@ import { MOCK_ARTICLES } from '@/constants/mockData';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { TodayStackParamList } from '@/types/navigation';
 
+const TAB_BAR_HEIGHT = 60;
+
 type Props = NativeStackScreenProps<TodayStackParamList, 'ArticleDetail'>;
 
 export function ArticleDetailScreen({ route, navigation }: Props) {
@@ -43,7 +45,7 @@ export function ArticleDetailScreen({ route, navigation }: Props) {
 
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + spacing.xxl }]}
+        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + TAB_BAR_HEIGHT + spacing.xxl }]}
       >
         {/* Source & Meta */}
         <Animated.View entering={FadeIn.duration(300)} style={styles.meta}>
