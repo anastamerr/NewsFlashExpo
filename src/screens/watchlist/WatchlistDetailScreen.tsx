@@ -39,31 +39,47 @@ export function WatchlistDetailScreen({ route, navigation }: Props) {
   const handleArticlePress = useCallback((article: Article) => {
     navigation.navigate('ArticleDetail', { articleId: article.id });
   }, [navigation]);
+  const handleArticleLongPress = useCallback((article: Article) => {
+    navigation.navigate('WatchlistSummary', {
+      articleId: article.id,
+      deepDiveRoute: 'WatchlistDeepDive',
+    });
+  }, [navigation]);
+  const handleOpenSynthesis = useCallback(() => {
+    navigation.navigate('MarketSynthesis', { watchlistItemId: itemId });
+  }, [itemId, navigation]);
 
   const renderHeader = useCallback(() => (
     <View>
       {/* Stats Card */}
       <Animated.View entering={FadeIn.duration(400)}>
-        <GlassCard style={styles.statsCard}>
-          <View style={styles.statsRow}>
-            <View style={styles.statItem}>
-              <Text style={[typePresets.monoLg, { color: colors.text }]}>{articles.length}</Text>
-              <Text style={[typePresets.labelXs, { color: colors.textSecondary }]}>ARTICLES</Text>
+        <Pressable
+          onPress={handleOpenSynthesis}
+          accessibilityRole="button"
+          accessibilityLabel={`Open market synthesis for ${name}`}
+          style={({ pressed }) => pressed && styles.pressed}
+        >
+          <GlassCard style={styles.statsCard}>
+            <View style={styles.statsRow}>
+              <View style={styles.statItem}>
+                <Text style={[typePresets.monoLg, { color: colors.text }]}>{articles.length}</Text>
+                <Text style={[typePresets.labelXs, { color: colors.textSecondary }]}>ARTICLES</Text>
+              </View>
+              <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
+              <View style={styles.statItem}>
+                <SparkLine data={SPARK_DATA} width={70} height={28} color={colors.primary} />
+                <Text style={[typePresets.labelXs, { color: colors.textSecondary }]}>TREND</Text>
+              </View>
+              <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
+              <View style={styles.statItem}>
+                <Text style={[typePresets.monoLg, { color: colors.sentimentPositive }]}>
+                  +{((item?.sentiment ?? 0) > 0 ? item?.sentiment : 1.2)?.toFixed(1)}
+                </Text>
+                <Text style={[typePresets.labelXs, { color: colors.textSecondary }]}>SENTIMENT</Text>
+              </View>
             </View>
-            <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
-            <View style={styles.statItem}>
-              <SparkLine data={SPARK_DATA} width={70} height={28} color={colors.primary} />
-              <Text style={[typePresets.labelXs, { color: colors.textSecondary }]}>TREND</Text>
-            </View>
-            <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
-            <View style={styles.statItem}>
-              <Text style={[typePresets.monoLg, { color: colors.sentimentPositive }]}>
-                +{((item?.sentiment ?? 0) > 0 ? item?.sentiment : 1.2)?.toFixed(1)}
-              </Text>
-              <Text style={[typePresets.labelXs, { color: colors.textSecondary }]}>SENTIMENT</Text>
-            </View>
-          </View>
-        </GlassCard>
+          </GlassCard>
+        </Pressable>
       </Animated.View>
 
       {/* Sentiment Gauge */}
@@ -80,13 +96,17 @@ export function WatchlistDetailScreen({ route, navigation }: Props) {
         Recent Coverage
       </Text>
     </View>
-  ), [colors, articles.length, positiveCount, neutralCount, negativeCount, item]);
+  ), [articles.length, colors, handleOpenSynthesis, item, name, negativeCount, neutralCount, positiveCount]);
 
   const renderArticle = useCallback(({ item: article, index }: { item: Article; index: number }) => (
     <Animated.View entering={FadeInDown.delay(200 + index * 50).springify()}>
-      <ArticleCard article={article} onPress={handleArticlePress} />
+      <ArticleCard
+        article={article}
+        onPress={handleArticlePress}
+        onLongPress={handleArticleLongPress}
+      />
     </Animated.View>
-  ), [handleArticlePress]);
+  ), [handleArticleLongPress, handleArticlePress]);
   const listContentContainerStyle = useMemo(
     () => ({
       paddingHorizontal: spacing.base,

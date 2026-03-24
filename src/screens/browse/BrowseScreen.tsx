@@ -1,14 +1,16 @@
 import React, { useState, useMemo, useCallback, useRef } from 'react';
 import { View, Text, StyleSheet, LayoutAnimation, UIManager, Platform, Pressable, ScrollView } from 'react-native';
-import Animated, { FadeInDown, FadeIn, FadeOut } from 'react-native-reanimated';
-import { TrendingUp, TrendingDown, Minus, LayoutGrid, List, SlidersHorizontal, Check } from 'lucide-react-native';
+import Animated, { FadeInDown } from 'react-native-reanimated';
+import { TrendingUp, TrendingDown, Minus, LayoutGrid, List, SlidersHorizontal } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FlashList, type FlashListRef } from '@shopify/flash-list';
 import { SearchBar } from '@/components/ui/SearchBar';
 import { Chip } from '@/components/ui/Chip';
+import { Button } from '@/components/ui/Button';
+import { BottomSheetModal } from '@/components/ui/BottomSheetModal';
 import { ArticleCard } from '@/components/lists/ArticleCard';
 import { SwipeableRow, useBookmarkAction, useShareAction } from '@/components/lists/SwipeableRow';
-import { useTheme, spacing, radius, shadows } from '@/theme';
+import { useTheme, spacing, radius } from '@/theme';
 import { typePresets, fontFamily } from '@/theme/typography';
 import { selectionTap } from '@/utils/haptics';
 import { useDebounce } from '@/hooks/useDebounce';
@@ -20,10 +22,15 @@ import type { Article } from '@/types/api';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { BrowseStackParamList } from '@/types/navigation';
 import { useNavigation } from '@react-navigation/native';
+import type { TimeWindow } from '@/utils/timeWindow';
+import { isWithinTimeWindow } from '@/utils/timeWindow';
 
 type Nav = NativeStackNavigationProp<BrowseStackParamList, 'Browse'>;
 
 const FILTER_SOURCES = ['All', 'Reuters', 'Bloomberg', 'Financial Times', 'Alborsa News', 'Mubasher', 'TechCrunch'];
+const SEARCH_TYPES = ['All', 'Company', 'People', 'Sector', 'Market'] as const;
+const TAG_OPTIONS = ['All Tags', ...Array.from(new Set(MOCK_ARTICLES.map((article) => article.tag)))];
+const TIME_WINDOWS: TimeWindow[] = ['24H', '7D', '30D', '90D'];
 const SENTIMENT_OPTIONS = [
   { key: 'All', label: 'All Sentiments', color: '', Icon: Minus },
   { key: 'Positive', label: 'Positive', color: '#10b981', Icon: TrendingUp },
@@ -43,8 +50,11 @@ export function BrowseScreen() {
   const [search, setSearch] = useState('');
   const [selectedSource, setSelectedSource] = useState('All');
   const [selectedSentiment, setSelectedSentiment] = useState('All');
+  const [searchType, setSearchType] = useState<(typeof SEARCH_TYPES)[number]>('All');
+  const [selectedTag, setSelectedTag] = useState('All Tags');
+  const [timeWindow, setTimeWindow] = useState<TimeWindow | null>(null);
   const [viewMode, setViewMode] = useState<'expanded' | 'compact'>('expanded');
-  const [showSentimentMenu, setShowSentimentMenu] = useState(false);
+  const [showFilterSheet, setShowFilterSheet] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const hasAnimated = useRef(false);
   const listRef = useRef<FlashListRef<Article>>(null);
@@ -87,14 +97,62 @@ export function BrowseScreen() {
 
   const filteredArticles = useMemo(() => {
     return MOCK_ARTICLES.filter((a) => {
-      if (debouncedSearch && !a.title.toLowerCase().includes(debouncedSearch.toLowerCase())) return false;
+      const query = debouncedSearch.trim().toLowerCase();
+
+      if (query) {
+        const title = a.title.toLowerCase();
+        const summary = a.summary.toLowerCase();
+        const company = a.company.toLowerCase();
+        const tag = a.tag.toLowerCase();
+
+        switch (searchType) {
+          case 'Company':
+            if (!title.includes(query) && !company.includes(query)) return false;
+            break;
+          case 'People':
+            if (!title.includes(query) && !summary.includes(query)) return false;
+            break;
+          case 'Sector':
+            if (!tag.includes(query) && !summary.includes(query)) return false;
+            break;
+          case 'Market':
+            if (!title.includes(query) && !summary.includes(query) && !tag.includes(query)) return false;
+            break;
+          default:
+            if (!title.includes(query) && !summary.includes(query) && !company.includes(query) && !tag.includes(query)) return false;
+        }
+      }
+
       if (selectedSource !== 'All' && a.source !== selectedSource) return false;
+      if (selectedTag !== 'All Tags' && a.tag !== selectedTag) return false;
       if (selectedSentiment === 'Positive' && a.sentiment <= 1) return false;
       if (selectedSentiment === 'Negative' && a.sentiment >= -1) return false;
       if (selectedSentiment === 'Neutral' && (a.sentiment > 1 || a.sentiment < -1)) return false;
+      if (timeWindow && !isWithinTimeWindow(a.date, timeWindow)) return false;
       return true;
     });
-  }, [debouncedSearch, selectedSource, selectedSentiment]);
+  }, [debouncedSearch, searchType, selectedSource, selectedSentiment, selectedTag, timeWindow]);
+  const activeFilters = useMemo(() => {
+    const filters = [];
+
+    if (searchType !== 'All') {
+      filters.push(`${searchType} scope`);
+    }
+    if (selectedSentiment !== 'All') {
+      filters.push(selectedSentiment);
+    }
+    if (selectedTag !== 'All Tags') {
+      filters.push(selectedTag);
+    }
+    if (timeWindow) {
+      filters.push(timeWindow);
+    }
+    if (selectedSource !== 'All') {
+      filters.push(selectedSource);
+    }
+
+    return filters;
+  }, [searchType, selectedSentiment, selectedSource, selectedTag, timeWindow]);
   const listContentContainerStyle = useMemo(
     () => ({
       paddingHorizontal: spacing.base,
@@ -106,6 +164,19 @@ export function BrowseScreen() {
   const handleArticlePress = useCallback((article: Article) => {
     navigation.navigate('ArticleDetail', { articleId: article.id });
   }, [navigation]);
+  const handleArticleLongPress = useCallback((article: Article) => {
+    navigation.navigate('BrowseSummary', {
+      articleId: article.id,
+      deepDiveRoute: 'BrowseDeepDive',
+    });
+  }, [navigation]);
+  const handleResetFilters = useCallback(() => {
+    setSearchType('All');
+    setSelectedSentiment('All');
+    setSelectedTag('All Tags');
+    setTimeWindow(null);
+    setSelectedSource('All');
+  }, []);
 
   const bookmarkAction = useBookmarkAction(() => {});
   const shareAction = useShareAction(() => {});
@@ -115,11 +186,16 @@ export function BrowseScreen() {
     return (
       <Animated.View entering={entering}>
         <SwipeableRow leftActions={[bookmarkAction]} rightActions={[shareAction]}>
-          <ArticleCard article={item} mode={viewMode} onPress={handleArticlePress} />
+          <ArticleCard
+            article={item}
+            mode={viewMode}
+            onPress={handleArticlePress}
+            onLongPress={handleArticleLongPress}
+          />
         </SwipeableRow>
       </Animated.View>
     );
-  }, [viewMode, handleArticlePress, bookmarkAction, shareAction]);
+  }, [viewMode, handleArticlePress, handleArticleLongPress, bookmarkAction, shareAction]);
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}>
@@ -150,85 +226,49 @@ export function BrowseScreen() {
         </View>
       </View>
 
-      {/* Search + Sentiment filter */}
+      {/* Search + Advanced Filters */}
       <View style={styles.searchRow}>
         <View style={styles.searchBarWrapper}>
           <SearchBar value={search} onChangeText={setSearch} placeholder="Search articles..." />
         </View>
         <Pressable
-          onPress={() => setShowSentimentMenu((v) => !v)}
+          onPress={() => setShowFilterSheet(true)}
           style={({ pressed }) => [
             styles.filterBtn,
             {
-              backgroundColor: selectedSentiment !== 'All'
-                ? SENTIMENT_OPTIONS.find((o) => o.key === selectedSentiment)!.color + '18'
-                : colors.inputBackground,
-              borderColor: selectedSentiment !== 'All'
-                ? SENTIMENT_OPTIONS.find((o) => o.key === selectedSentiment)!.color
-                : colors.border,
+              backgroundColor: activeFilters.length > 0 ? colors.primary + '16' : colors.inputBackground,
+              borderColor: activeFilters.length > 0 ? colors.primary : colors.border,
             },
             pressed && styles.pressed,
           ]}
         >
           <SlidersHorizontal
             size={18}
-            color={
-              selectedSentiment !== 'All'
-                ? SENTIMENT_OPTIONS.find((o) => o.key === selectedSentiment)!.color
-                : colors.textTertiary
-            }
+            color={activeFilters.length > 0 ? colors.primary : colors.textTertiary}
             strokeWidth={2}
           />
         </Pressable>
       </View>
 
-      {showSentimentMenu ? (
-        <Animated.View
-          entering={FadeIn.duration(150)}
-          exiting={FadeOut.duration(100)}
-          style={[styles.sentimentMenu, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}
+      {activeFilters.length > 0 ? (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.activeFiltersScroll}
+          contentContainerStyle={styles.activeFiltersRow}
         >
-          {SENTIMENT_OPTIONS.map((opt) => {
-            const active = selectedSentiment === opt.key;
-            const optColor = opt.key === 'All' ? colors.text : opt.color;
-            return (
-              <Pressable
-                key={opt.key}
-                onPress={() => {
-                  selectionTap();
-                  setSelectedSentiment(opt.key);
-                  setShowSentimentMenu(false);
-                }}
-                style={({ pressed }) => [
-                  styles.sentimentMenuItem,
-                  active && { backgroundColor: (opt.key === 'All' ? colors.primary : opt.color) + '12' },
-                  pressed && styles.pressed,
-                ]}
-              >
-                {opt.key !== 'All' ? React.createElement(opt.Icon, {
-                  size: 16,
-                  color: active ? optColor : colors.textSecondary,
-                  strokeWidth: 2,
-                }) : null}
-                <Text
-                  style={[
-                    typePresets.body,
-                    {
-                      flex: 1,
-                      color: active ? optColor : colors.textSecondary,
-                      fontFamily: active ? fontFamily.sansSemiBold : fontFamily.sans,
-                    },
-                  ]}
-                >
-                  {opt.label}
-                </Text>
-                {active ? (
-                  <Check size={16} color={optColor} strokeWidth={2.5} />
-                ) : null}
-              </Pressable>
-            );
-          })}
-        </Animated.View>
+          {activeFilters.map((filter) => (
+            <View
+              key={filter}
+              style={[styles.activeFilterPill, { backgroundColor: colors.primary + '10', borderColor: colors.primary + '30' }]}
+            >
+              <Text style={[typePresets.labelSm, { color: colors.primary }]}>{filter}</Text>
+            </View>
+          ))}
+          <Pressable onPress={handleResetFilters} style={({ pressed }) => [styles.resetLink, pressed && styles.pressed]}>
+            <Text style={[typePresets.labelSm, { color: colors.textSecondary }]}>Reset</Text>
+          </Pressable>
+        </ScrollView>
       ) : null}
 
       {/* Source filters */}
@@ -250,7 +290,7 @@ export function BrowseScreen() {
 
       {/* Results Count */}
       <Text style={[typePresets.bodySm, { color: colors.textTertiary, paddingHorizontal: spacing.base, marginBottom: spacing.sm }]}>
-        {filteredArticles.length} articles found
+        {filteredArticles.length} articles found{searchType !== 'All' ? ` · ${searchType.toLowerCase()} search` : ''}
       </Text>
 
       {/* Article List */}
@@ -275,6 +315,111 @@ export function BrowseScreen() {
           onRefresh={onRefresh}
         />
       )}
+
+      <BottomSheetModal
+        visible={showFilterSheet}
+        title="Browse Filters"
+        description="Refine scope, sentiment, tags, and time window without leaving the feed."
+        onClose={() => setShowFilterSheet(false)}
+        footer={(
+          <View style={styles.sheetFooter}>
+            <Button label="Reset" variant="ghost" onPress={handleResetFilters} />
+            <Button label="Done" onPress={() => setShowFilterSheet(false)} />
+          </View>
+        )}
+      >
+        <View style={styles.sheetSection}>
+          <Text style={[typePresets.labelXs, { color: colors.primary }]}>SEARCH SCOPE</Text>
+          <View style={styles.sheetChipWrap}>
+            {SEARCH_TYPES.map((type) => (
+              <Chip
+                key={type}
+                label={type}
+                selected={searchType === type}
+                onPress={() => setSearchType(type)}
+              />
+            ))}
+          </View>
+        </View>
+
+        <View style={styles.sheetSection}>
+          <Text style={[typePresets.labelXs, { color: colors.primary }]}>SENTIMENT</Text>
+          <View style={styles.optionList}>
+            {SENTIMENT_OPTIONS.map((option) => {
+              const active = selectedSentiment === option.key;
+              const Icon = option.Icon;
+              const tone = option.key === 'All' ? colors.textSecondary : option.color;
+
+              return (
+                <Pressable
+                  key={option.key}
+                  onPress={() => {
+                    selectionTap();
+                    setSelectedSentiment(option.key);
+                  }}
+                  style={({ pressed }) => [
+                    styles.optionRow,
+                    {
+                      backgroundColor: active ? (option.key === 'All' ? colors.primary + '10' : option.color + '12') : colors.surface,
+                      borderColor: active ? (option.key === 'All' ? colors.primary : option.color) : colors.border,
+                    },
+                    pressed && styles.pressed,
+                  ]}
+                >
+                  <View style={styles.optionRowLeft}>
+                    <Icon size={16} color={active ? tone : colors.textTertiary} strokeWidth={2} />
+                    <Text
+                      style={[
+                        typePresets.body,
+                        {
+                          color: active ? tone : colors.textSecondary,
+                          fontFamily: active ? fontFamily.sansSemiBold : fontFamily.sans,
+                        },
+                      ]}
+                    >
+                      {option.label}
+                    </Text>
+                  </View>
+                  <View style={[styles.optionDot, { backgroundColor: active ? tone : colors.border }]} />
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
+
+        <View style={styles.sheetSection}>
+          <Text style={[typePresets.labelXs, { color: colors.primary }]}>TAGS</Text>
+          <View style={styles.sheetChipWrap}>
+            {TAG_OPTIONS.map((tag) => (
+              <Chip
+                key={tag}
+                label={tag}
+                selected={selectedTag === tag}
+                onPress={() => setSelectedTag(tag)}
+              />
+            ))}
+          </View>
+        </View>
+
+        <View style={styles.sheetSection}>
+          <Text style={[typePresets.labelXs, { color: colors.primary }]}>TIME WINDOW</Text>
+          <View style={styles.sheetChipWrap}>
+            <Chip
+              label="All Time"
+              selected={timeWindow === null}
+              onPress={() => setTimeWindow(null)}
+            />
+            {TIME_WINDOWS.map((window) => (
+              <Chip
+                key={window}
+                label={window}
+                selected={timeWindow === window}
+                onPress={() => setTimeWindow(window)}
+              />
+            ))}
+          </View>
+        </View>
+      </BottomSheetModal>
     </View>
   );
 }
@@ -322,21 +467,61 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  sentimentMenu: {
-    marginHorizontal: spacing.base,
+  activeFiltersScroll: {
+    flexGrow: 0,
     marginBottom: spacing.sm,
+  },
+  activeFiltersRow: {
+    paddingHorizontal: spacing.base,
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  activeFilterPill: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs + 2,
+    borderRadius: radius.full,
+    borderWidth: 1,
+    borderCurve: 'continuous',
+  },
+  resetLink: {
+    paddingHorizontal: spacing.xs,
+    paddingVertical: spacing.xs,
+  },
+  sheetSection: {
+    gap: spacing.sm,
+  },
+  sheetChipWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  optionList: {
+    gap: spacing.sm,
+  },
+  optionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.base,
+    paddingVertical: spacing.md,
     borderRadius: radius.md,
     borderCurve: 'continuous',
     borderWidth: 1,
-    overflow: 'hidden',
-    ...shadows.md,
   },
-  sentimentMenuItem: {
+  optionRowLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    paddingHorizontal: spacing.base,
-    paddingVertical: spacing.md,
+  },
+  optionDot: {
+    width: 10,
+    height: 10,
+    borderRadius: radius.full,
+  },
+  sheetFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
   },
   filterScroll: {
     flexGrow: 0,

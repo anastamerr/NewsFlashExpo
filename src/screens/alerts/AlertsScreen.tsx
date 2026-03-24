@@ -1,50 +1,124 @@
-import React, { useState, useMemo, useCallback } from 'react';
-import { View, Text, StyleSheet, Pressable } from 'react-native';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-import { Plus, Bell } from 'lucide-react-native';
+import { Plus } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FlashList } from '@shopify/flash-list';
 import { AlertRow } from '@/components/lists/AlertRow';
 import { Chip } from '@/components/ui/Chip';
+import { Input } from '@/components/ui/Input';
+import { Button } from '@/components/ui/Button';
+import { BottomSheetModal } from '@/components/ui/BottomSheetModal';
 import { useTheme, spacing } from '@/theme';
 import { typePresets } from '@/theme/typography';
-import { MOCK_ALERTS } from '@/constants/mockData';
+import { MOCK_ALERTS, MOCK_ARTICLES } from '@/constants/mockData';
 import { useRefreshControl } from '@/hooks/useRefreshControl';
 import { useScrollDirection } from '@/hooks/useScrollDirection';
 import { SkeletonAlert } from '@/components/ui/Skeleton';
+import { getStoredAlerts, saveStoredAlerts, type DeliveryChannel, type ManagedAlert, type SeverityFilter } from '@/utils/adminPersistence';
+import { successNotification } from '@/utils/haptics';
 import type { AlertPublic } from '@/types/api';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AlertsStackParamList } from '@/types/navigation';
-import { ScrollView } from 'react-native';
 
 type Props = NativeStackScreenProps<AlertsStackParamList, 'Alerts'>;
+type AlertFilter = 'All' | 'Crisis' | 'Active' | 'Resolved';
+type AlertTypeFilter = 'all' | NonNullable<AlertPublic['type']>;
+type AlertDraft = {
+  title: string;
+  keywords: string;
+  type: NonNullable<AlertPublic['type']>;
+  severity: AlertPublic['severity'];
+  companyFilters: string[];
+  deliveryChannels: DeliveryChannel[];
+  severityThreshold: SeverityFilter;
+};
 
-const FILTERS = ['All', 'Crisis', 'Active', 'Resolved'] as const;
+const FILTERS: AlertFilter[] = ['All', 'Crisis', 'Active', 'Resolved'];
+const ALERT_TYPE_FILTERS: { value: AlertTypeFilter; label: string }[] = [
+  { value: 'all', label: 'All Types' },
+  { value: 'crisis', label: 'Crisis' },
+  { value: 'macro', label: 'Macro' },
+  { value: 'earnings', label: 'Earnings' },
+  { value: 'brand_mention', label: 'Brand' },
+];
+const ALERT_TYPES: NonNullable<AlertPublic['type']>[] = ['crisis', 'macro', 'earnings', 'brand_mention', 'ratings', 'ceo_change'];
+const DELIVERY_CHANNELS: DeliveryChannel[] = ['push', 'email', 'in-app'];
+const COMPANY_OPTIONS = Array.from(new Set(MOCK_ARTICLES.map((article) => article.company))).slice(0, 8);
+const EMPTY_DRAFT: AlertDraft = {
+  title: '',
+  keywords: '',
+  type: 'macro',
+  severity: 'HIGH',
+  companyFilters: [],
+  deliveryChannels: ['push', 'in-app'],
+  severityThreshold: 'HIGH',
+};
+
+const ALERT_COLORS: Record<AlertPublic['severity'], string> = {
+  CRITICAL: '#ef4444',
+  HIGH: '#f97316',
+  MEDIUM: '#eab308',
+  LOW: '#8aa8ff',
+};
 
 export function AlertsScreen({ navigation }: Props) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const { handleScroll } = useScrollDirection();
-  const [activeFilter, setActiveFilter] = useState<string>('All');
+  const [alerts, setAlerts] = useState<ManagedAlert[]>(MOCK_ALERTS);
+  const [activeFilter, setActiveFilter] = useState<AlertFilter>('All');
+  const [activeTypeFilter, setActiveTypeFilter] = useState<AlertTypeFilter>('all');
   const [isLoading, setIsLoading] = useState(true);
+  const [sheetVisible, setSheetVisible] = useState(false);
+  const [draft, setDraft] = useState<AlertDraft>(EMPTY_DRAFT);
 
-  React.useEffect(() => {
-    const timer = setTimeout(() => setIsLoading(false), 500);
-    return () => clearTimeout(timer);
+  useEffect(() => {
+    let isMounted = true;
+
+    Promise.all([
+      getStoredAlerts(MOCK_ALERTS),
+      new Promise((resolve) => setTimeout(resolve, 350)),
+    ]).then(([storedAlerts]) => {
+      if (!isMounted) {
+        return;
+      }
+
+      setAlerts(storedAlerts);
+      setIsLoading(false);
+    });
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const { refreshing, onRefresh } = useRefreshControl(async () => {
-    await new Promise((r) => setTimeout(r, 800));
+    const storedAlerts = await getStoredAlerts(MOCK_ALERTS);
+    setAlerts(storedAlerts);
   });
 
   const filteredAlerts = useMemo(() => {
-    switch (activeFilter) {
-      case 'Crisis': return MOCK_ALERTS.filter((a) => a.severity === 'CRITICAL');
-      case 'Active': return MOCK_ALERTS.filter((a) => !a.isResolved);
-      case 'Resolved': return MOCK_ALERTS.filter((a) => a.isResolved);
-      default: return MOCK_ALERTS;
+    const statusFiltered = alerts.filter((alert) => {
+      switch (activeFilter) {
+        case 'Crisis':
+          return alert.type === 'crisis' || alert.severity === 'CRITICAL';
+        case 'Active':
+          return !alert.isResolved;
+        case 'Resolved':
+          return alert.isResolved;
+        default:
+          return true;
+      }
+    });
+
+    if (activeTypeFilter === 'all') {
+      return statusFiltered;
     }
-  }, [activeFilter]);
+
+    return statusFiltered.filter((alert) => alert.type === activeTypeFilter);
+  }, [activeFilter, activeTypeFilter, alerts]);
+
   const listContentContainerStyle = useMemo(
     () => ({
       paddingHorizontal: spacing.base,
@@ -57,14 +131,84 @@ export function AlertsScreen({ navigation }: Props) {
     navigation.navigate('AlertDetail', { alertId: alert.id });
   }, [navigation]);
 
-  const renderAlert = useCallback(({ item, index }: { item: AlertPublic; index: number }) => (
-    <Animated.View entering={FadeInDown.delay(index * 60).springify()}>
-      <AlertRow alert={item} onPress={handleAlertPress} />
-    </Animated.View>
-  ), [handleAlertPress]);
+  const handleAlertLongPress = useCallback((alert: AlertPublic) => {
+    if (alert.type === 'crisis') {
+      navigation.navigate('CrisisDetail', { crisisId: alert.id });
+      return;
+    }
 
-  const activeCount = MOCK_ALERTS.filter((a) => !a.isResolved).length;
-  const criticalCount = MOCK_ALERTS.filter((a) => a.severity === 'CRITICAL' && !a.isResolved).length;
+    navigation.navigate('AlertTriggerDetail', {
+      alertId: alert.id,
+      triggerId: alert.id,
+    });
+  }, [navigation]);
+
+  const handleCloseSheet = useCallback(() => {
+    setSheetVisible(false);
+    setDraft(EMPTY_DRAFT);
+  }, []);
+
+  const handleToggleCompany = useCallback((company: string) => {
+    setDraft((current) => ({
+      ...current,
+      companyFilters: current.companyFilters.includes(company)
+        ? current.companyFilters.filter((item) => item !== company)
+        : [...current.companyFilters, company],
+    }));
+  }, []);
+
+  const handleToggleChannel = useCallback((channel: DeliveryChannel) => {
+    setDraft((current) => ({
+      ...current,
+      deliveryChannels: current.deliveryChannels.includes(channel)
+        ? current.deliveryChannels.filter((item) => item !== channel)
+        : [...current.deliveryChannels, channel],
+    }));
+  }, []);
+
+  const handleCreateAlert = useCallback(async () => {
+    const title = draft.title.trim();
+    const keywords = draft.keywords
+      .split(',')
+      .map((keyword) => keyword.trim())
+      .filter(Boolean);
+
+    if (!title || keywords.length === 0) {
+      return;
+    }
+
+    const scope = draft.companyFilters.length > 0 ? draft.companyFilters.join(', ') : 'the selected market';
+    const nextAlert: ManagedAlert = {
+      id: `alert-${Date.now()}`,
+      title,
+      severity: draft.severity,
+      message: `Monitoring ${scope} for ${keywords.slice(0, 3).join(', ')} with ${draft.severityThreshold} escalation.`,
+      keywords,
+      source: 'Custom Rule',
+      color: ALERT_COLORS[draft.severity],
+      createdAt: new Date().toISOString(),
+      isResolved: false,
+      type: draft.type,
+      companyFilters: draft.companyFilters,
+      deliveryChannels: draft.deliveryChannels,
+      severityThreshold: draft.severityThreshold,
+    };
+
+    const nextAlerts = [nextAlert, ...alerts];
+    setAlerts(nextAlerts);
+    await saveStoredAlerts(nextAlerts);
+    successNotification();
+    handleCloseSheet();
+  }, [alerts, draft, handleCloseSheet]);
+
+  const renderAlert = useCallback(({ item, index }: { item: ManagedAlert; index: number }) => (
+    <Animated.View entering={FadeInDown.delay(index * 60).springify()}>
+      <AlertRow alert={item} onPress={handleAlertPress} onLongPress={handleAlertLongPress} />
+    </Animated.View>
+  ), [handleAlertLongPress, handleAlertPress]);
+
+  const activeCount = alerts.filter((alert) => !alert.isResolved).length;
+  const criticalCount = alerts.filter((alert) => alert.severity === 'CRITICAL' && !alert.isResolved).length;
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}>
@@ -72,15 +216,18 @@ export function AlertsScreen({ navigation }: Props) {
         <View>
           <Text style={[typePresets.h1, { color: colors.text }]}>Alerts</Text>
           <Text style={[typePresets.bodySm, { color: colors.textTertiary, marginTop: 2 }]}>
-            {activeCount} active{criticalCount > 0 ? ` \u00b7 ${criticalCount} critical` : ''}
+            {activeCount} active{criticalCount > 0 ? ` · ${criticalCount} critical` : ''}
           </Text>
         </View>
         <Pressable
+          onPress={() => setSheetVisible(true)}
           style={({ pressed }) => [
             styles.addBtn,
             { backgroundColor: colors.primary },
             pressed && styles.pressed,
           ]}
+          accessibilityRole="button"
+          accessibilityLabel="Create alert"
         >
           <Plus size={20} color={colors.textInverse} strokeWidth={2.5} />
         </Pressable>
@@ -102,10 +249,26 @@ export function AlertsScreen({ navigation }: Props) {
         ))}
       </ScrollView>
 
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.typeScroll}
+        contentContainerStyle={styles.filterRow}
+      >
+        {ALERT_TYPE_FILTERS.map((filter) => (
+          <Chip
+            key={filter.value}
+            label={filter.label}
+            selected={activeTypeFilter === filter.value}
+            onPress={() => setActiveTypeFilter(filter.value)}
+          />
+        ))}
+      </ScrollView>
+
       {isLoading ? (
         <View style={styles.list}>
-          {Array.from({ length: 5 }).map((_, i) => (
-            <SkeletonAlert key={i} />
+          {Array.from({ length: 5 }).map((_, index) => (
+            <SkeletonAlert key={index} />
           ))}
         </View>
       ) : (
@@ -121,9 +284,97 @@ export function AlertsScreen({ navigation }: Props) {
           onRefresh={onRefresh}
         />
       )}
+
+      <BottomSheetModal
+        visible={sheetVisible}
+        title="Create Alert Rule"
+        description="Define scope, delivery, and escalation without leaving the mobile workflow."
+        onClose={handleCloseSheet}
+        footer={<Button label="Create alert" onPress={handleCreateAlert} fullWidth />}
+      >
+        <Input
+          label="Rule Title"
+          placeholder="CBE liquidity watch"
+          value={draft.title}
+          onChangeText={(value) => setDraft((current) => ({ ...current, title: value }))}
+        />
+        <Input
+          label="Keywords"
+          placeholder="CBE, liquidity, rates"
+          value={draft.keywords}
+          onChangeText={(value) => setDraft((current) => ({ ...current, keywords: value }))}
+          hint="Separate keywords with commas."
+        />
+
+        <View>
+          <Text style={[typePresets.label, { color: colors.textSecondary, marginBottom: spacing.sm }]}>
+            Alert Type
+          </Text>
+          <View style={styles.sheetChips}>
+            {ALERT_TYPES.map((type) => (
+              <Chip
+                key={type}
+                label={type.replace(/_/g, ' ')}
+                selected={draft.type === type}
+                onPress={() => setDraft((current) => ({ ...current, type }))}
+              />
+            ))}
+          </View>
+        </View>
+
+        <View>
+          <Text style={[typePresets.label, { color: colors.textSecondary, marginBottom: spacing.sm }]}>
+            Severity Threshold
+          </Text>
+          <View style={styles.sheetChips}>
+            {SEVERITY_OPTIONS.map((severity) => (
+              <Chip
+                key={severity}
+                label={severity}
+                selected={draft.severityThreshold === severity}
+                onPress={() => setDraft((current) => ({ ...current, severityThreshold: severity, severity }))}
+              />
+            ))}
+          </View>
+        </View>
+
+        <View>
+          <Text style={[typePresets.label, { color: colors.textSecondary, marginBottom: spacing.sm }]}>
+            Company Filters
+          </Text>
+          <View style={styles.sheetChips}>
+            {COMPANY_OPTIONS.map((company) => (
+              <Chip
+                key={company}
+                label={company}
+                selected={draft.companyFilters.includes(company)}
+                onPress={() => handleToggleCompany(company)}
+              />
+            ))}
+          </View>
+        </View>
+
+        <View>
+          <Text style={[typePresets.label, { color: colors.textSecondary, marginBottom: spacing.sm }]}>
+            Delivery Channels
+          </Text>
+          <View style={styles.sheetChips}>
+            {DELIVERY_CHANNELS.map((channel) => (
+              <Chip
+                key={channel}
+                label={channel}
+                selected={draft.deliveryChannels.includes(channel)}
+                onPress={() => handleToggleChannel(channel)}
+              />
+            ))}
+          </View>
+        </View>
+      </BottomSheetModal>
     </View>
   );
 }
+
+const SEVERITY_OPTIONS: SeverityFilter[] = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'];
 
 const styles = StyleSheet.create({
   container: {
@@ -147,6 +398,9 @@ const styles = StyleSheet.create({
   },
   filterScroll: {
     flexGrow: 0,
+  },
+  typeScroll: {
+    flexGrow: 0,
     marginBottom: spacing.base,
   },
   filterRow: {
@@ -156,6 +410,11 @@ const styles = StyleSheet.create({
   },
   list: {
     paddingHorizontal: spacing.base,
+  },
+  sheetChips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
   },
   pressed: {
     opacity: 0.8,

@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-import { ArrowLeft } from 'lucide-react-native';
+import { ArrowLeft, ArrowRight, Activity, Radio } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LineChart } from '@/components/charts/LineChart';
 import { BarChart } from '@/components/charts/BarChart';
@@ -10,9 +10,12 @@ import { SentimentGauge } from '@/components/charts/SentimentGauge';
 import { Card } from '@/components/ui/Card';
 import { Chip } from '@/components/ui/Chip';
 import { Section } from '@/components/layout/Section';
-import { useTheme, spacing } from '@/theme';
+import { GlassCard } from '@/components/ui/GlassCard';
+import { useTheme, spacing, radius } from '@/theme';
 import { typePresets } from '@/theme/typography';
-import { MOCK_STATS } from '@/constants/mockData';
+import { MOCK_ALERTS, MOCK_STATS } from '@/constants/mockData';
+import { getActiveCrisis, getTopTrigger } from '@/utils/alertReports';
+import { timeAgo } from '@/utils/format';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { DashboardsStackParamList } from '@/types/navigation';
 
@@ -62,7 +65,28 @@ export function DashboardDetailScreen({ route, navigation }: Props) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const title = route.params.title;
+  const dashboardId = route.params.dashboardId;
   const [period, setPeriod] = useState('7d');
+  const activeCrisis = useMemo(() => getActiveCrisis(MOCK_ALERTS), []);
+  const topTrigger = useMemo(() => getTopTrigger(MOCK_ALERTS), []);
+  const handleOpenCrisis = useCallback(() => {
+    if (!activeCrisis) {
+      return;
+    }
+
+    navigation.navigate('CrisisDetail', { crisisId: activeCrisis.id });
+  }, [activeCrisis, navigation]);
+  const handleOpenTrigger = useCallback(() => {
+    if (!topTrigger) {
+      return;
+    }
+
+    navigation.navigate('AlertTriggerDetail', {
+      alertId: topTrigger.id,
+      triggerId: topTrigger.id,
+    });
+  }, [navigation, topTrigger]);
+  const sectionTitle = dashboardId === 'crisis' ? 'Crisis Launches' : 'Related Intelligence';
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -84,14 +108,69 @@ export function DashboardDetailScreen({ route, navigation }: Props) {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + spacing.xxl }]}
       >
-        {/* Period Pills */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.periodRow}>
           {['24h', '7d', '30d', '90d'].map((p) => (
             <Chip key={p} label={p} selected={period === p} onPress={() => setPeriod(p)} />
           ))}
         </ScrollView>
 
-        {/* Sentiment Overview */}
+        {(activeCrisis || topTrigger) ? (
+          <Animated.View entering={FadeInDown.delay(50).springify()}>
+            <Section title={sectionTitle}>
+              <View style={styles.intelligenceStack}>
+                {activeCrisis ? (
+                  <Pressable
+                    onPress={handleOpenCrisis}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Open crisis report for ${activeCrisis.title}`}
+                    style={({ pressed }) => pressed && styles.pressed}
+                  >
+                    <GlassCard style={{ ...styles.intelligenceCard, borderColor: colors.danger + '35' }}>
+                      <View style={styles.intelligenceHeader}>
+                        <View style={[styles.intelligenceBadge, { backgroundColor: colors.danger + '14' }]}>
+                          <Activity size={14} color={colors.danger} strokeWidth={2.2} />
+                          <Text style={[typePresets.labelXs, { color: colors.danger }]}>ACTIVE CRISIS</Text>
+                        </View>
+                        <ArrowRight size={16} color={colors.textTertiary} strokeWidth={2} />
+                      </View>
+                      <Text style={[typePresets.h3, { color: colors.text, marginTop: spacing.sm }]} numberOfLines={2}>
+                        {activeCrisis.title}
+                      </Text>
+                      <Text style={[typePresets.bodySm, { color: colors.textSecondary, marginTop: spacing.xs }]} numberOfLines={2}>
+                        {activeCrisis.message}
+                      </Text>
+                      <Text style={[typePresets.labelXs, { color: colors.textTertiary, marginTop: spacing.sm }]}>
+                        {timeAgo(activeCrisis.createdAt)}
+                      </Text>
+                    </GlassCard>
+                  </Pressable>
+                ) : null}
+
+                {topTrigger ? (
+                  <Card variant="outlined" onPress={handleOpenTrigger} style={styles.intelligenceCard}>
+                    <View style={styles.intelligenceHeader}>
+                      <View style={[styles.intelligenceBadge, { backgroundColor: colors.primary + '10' }]}>
+                        <Radio size={14} color={colors.primary} strokeWidth={2.2} />
+                        <Text style={[typePresets.labelXs, { color: colors.primary }]}>TOP TRIGGER</Text>
+                      </View>
+                      <ArrowRight size={16} color={colors.textTertiary} strokeWidth={2} />
+                    </View>
+                    <Text style={[typePresets.h3, { color: colors.text, marginTop: spacing.sm }]} numberOfLines={2}>
+                      {topTrigger.title}
+                    </Text>
+                    <Text style={[typePresets.bodySm, { color: colors.textSecondary, marginTop: spacing.xs }]} numberOfLines={2}>
+                      {topTrigger.message}
+                    </Text>
+                    <Text style={[typePresets.labelXs, { color: colors.textTertiary, marginTop: spacing.sm }]}>
+                      {topTrigger.severity} | {timeAgo(topTrigger.createdAt)}
+                    </Text>
+                  </Card>
+                ) : null}
+              </View>
+            </Section>
+          </Animated.View>
+        ) : null}
+
         <Animated.View entering={FadeInDown.delay(100).springify()}>
           <Section title="Sentiment Breakdown">
             <SentimentGauge
@@ -103,7 +182,6 @@ export function DashboardDetailScreen({ route, navigation }: Props) {
           </Section>
         </Animated.View>
 
-        {/* Sentiment Trend Line Chart */}
         <Animated.View entering={FadeInDown.delay(200).springify()}>
           <Section title="Sentiment Trend">
             <Card>
@@ -119,7 +197,6 @@ export function DashboardDetailScreen({ route, navigation }: Props) {
           </Section>
         </Animated.View>
 
-        {/* Article Volume Bar Chart */}
         <Animated.View entering={FadeInDown.delay(300).springify()}>
           <Section title="Article Volume">
             <Card>
@@ -133,7 +210,6 @@ export function DashboardDetailScreen({ route, navigation }: Props) {
           </Section>
         </Animated.View>
 
-        {/* Category Distribution */}
         <Animated.View entering={FadeInDown.delay(400).springify()}>
           <Section title="Content by Category">
             <Card>
@@ -148,7 +224,6 @@ export function DashboardDetailScreen({ route, navigation }: Props) {
           </Section>
         </Animated.View>
 
-        {/* Top Topics */}
         <Animated.View entering={FadeInDown.delay(500).springify()}>
           <Section title="Trending Topics">
             {MOCK_STATS.trendingTopics.map((topic, i) => (
@@ -206,6 +281,29 @@ const styles = StyleSheet.create({
   periodRow: {
     gap: spacing.sm,
     marginBottom: spacing.sm,
+  },
+  intelligenceStack: {
+    gap: spacing.sm,
+  },
+  intelligenceCard: {
+    borderWidth: 1,
+    borderRadius: radius.lg,
+    borderCurve: 'continuous',
+  },
+  intelligenceHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  intelligenceBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: radius.full,
+    borderCurve: 'continuous',
   },
   topicRow: {
     flexDirection: 'row',

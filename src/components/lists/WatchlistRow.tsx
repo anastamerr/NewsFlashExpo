@@ -24,9 +24,16 @@ const TYPE_ICONS = {
 interface Props {
   item: WatchlistItem;
   onPress: (item: WatchlistItem) => void;
+  onLongPress?: (item: WatchlistItem) => void;
+  selected?: boolean;
 }
 
-export const WatchlistRow = memo(function WatchlistRow({ item, onPress }: Props) {
+export const WatchlistRow = memo(function WatchlistRow({
+  item,
+  onPress,
+  onLongPress,
+  selected = false,
+}: Props) {
   const { colors } = useTheme();
   const scale = useSharedValue(1);
 
@@ -43,6 +50,9 @@ export const WatchlistRow = memo(function WatchlistRow({ item, onPress }: Props)
   };
 
   const handlePress = useCallback(() => onPress(item), [item, onPress]);
+  const handleLongPress = useCallback(() => {
+    onLongPress?.(item);
+  }, [item, onLongPress]);
 
   const Icon = TYPE_ICONS[item.type] || Building2;
   const sentimentLabel = item.sentiment !== undefined ? getSentimentLabel(item.sentiment) : 'neutral';
@@ -51,10 +61,12 @@ export const WatchlistRow = memo(function WatchlistRow({ item, onPress }: Props)
   return (
     <Pressable
       onPress={handlePress}
+      onLongPress={onLongPress ? handleLongPress : undefined}
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
       accessibilityRole="button"
       accessibilityLabel={`${item.name}${item.symbol ? `, ${item.symbol}` : ''}, sentiment ${sentimentLabel}`}
+      accessibilityState={{ selected }}
       style={styles.pressable}
     >
       {({ pressed }) => (
@@ -63,6 +75,7 @@ export const WatchlistRow = memo(function WatchlistRow({ item, onPress }: Props)
             animatedStyle,
             styles.container,
             { backgroundColor: colors.surface },
+            selected && { borderColor: colors.primary, borderWidth: 1 },
             pressed && styles.pressed,
           ]}
         >

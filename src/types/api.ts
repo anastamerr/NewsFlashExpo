@@ -182,3 +182,114 @@ export interface ChatAssistant {
   icon: string;
   suggestedQuestions: string[];
 }
+
+// ---------------------------------------------------------------------------
+// Report content models (Phase 0)
+// ---------------------------------------------------------------------------
+
+export interface ReportSection {
+  title: string;
+  body: string;
+}
+
+export interface KeyPoint {
+  text: string;
+  sentiment?: 'positive' | 'negative' | 'neutral';
+}
+
+export interface Recommendation {
+  text: string;
+  priority?: 'high' | 'medium' | 'low';
+}
+
+export interface ReportMetadata {
+  source: string;
+  date: string;
+  sentiment: number;
+  importance: number;
+  tags: string[];
+  role?: AnalysisRole;
+}
+
+export interface ArticleSummaryReport {
+  id: string;
+  articleId: string;
+  title: string;
+  metadata: ReportMetadata;
+  summary: string;
+  keyPoints: KeyPoint[];
+  recommendations: Recommendation[];
+}
+
+export interface DeepDiveReport {
+  id: string;
+  articleId: string;
+  title: string;
+  metadata: ReportMetadata;
+  summary: string;
+  sections: ReportSection[];
+  keyPoints: KeyPoint[];
+  recommendations: Recommendation[];
+}
+
+export interface TriggerSummaryReport {
+  id: string;
+  alertId: string;
+  triggerId: string;
+  title: string;
+  metadata: ReportMetadata;
+  summary: string;
+  keyPoints: KeyPoint[];
+  triggerReason: string;
+}
+
+export interface TriggerDeepDiveReport {
+  id: string;
+  alertId: string;
+  triggerId: string;
+  title: string;
+  metadata: ReportMetadata;
+  summary: string;
+  sections: ReportSection[];
+  keyPoints: KeyPoint[];
+  recommendations: Recommendation[];
+  triggerReason: string;
+}
+
+export interface CrisisSummaryReport {
+  id: string;
+  crisisId: string;
+  title: string;
+  metadata: ReportMetadata;
+  summary: string;
+  keyPoints: KeyPoint[];
+  severity: 'critical' | 'high' | 'medium' | 'low';
+  affectedEntities: string[];
+}
+
+export interface CrisisDeepDiveReport {
+  id: string;
+  crisisId: string;
+  title: string;
+  metadata: ReportMetadata;
+  summary: string;
+  sections: ReportSection[];
+  keyPoints: KeyPoint[];
+  recommendations: Recommendation[];
+  severity: 'critical' | 'high' | 'medium' | 'low';
+  affectedEntities: string[];
+  timeline: { date: string; event: string }[];
+}
+
+export interface MarketSynthesisReport {
+  id: string;
+  title: string;
+  metadata: ReportMetadata;
+  articleCount: number;
+  averageSentiment: number;
+  averageImportance: number;
+  sentimentDistribution: { positive: number; negative: number; neutral: number };
+  sections: ReportSection[];
+  keyPoints: KeyPoint[];
+  recommendations: Recommendation[];
+}

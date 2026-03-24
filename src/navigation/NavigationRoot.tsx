@@ -22,6 +22,7 @@ import { MessageCircle } from 'lucide-react-native';
 import { ScrollDirectionProvider, useScrollDirection } from '@/hooks/useScrollDirection';
 import { useTheme, shadows } from '@/theme';
 import { useAuthStore } from '@/store/authStore';
+import { useChatStore } from '@/store/chatStore';
 import { lightTap } from '@/utils/haptics';
 import { AuthStack } from './AuthStack';
 import { MainTabs } from './MainTabs';
@@ -95,7 +96,9 @@ function ChatFab({ onPress }: { onPress: () => void }) {
 export function NavigationRoot() {
   const { colors, isDark } = useTheme();
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-  const [chatVisible, setChatVisible] = useState(false);
+  const chatVisible = useChatStore((state) => state.isOpen);
+  const openChat = useChatStore((state) => state.openChat);
+  const closeChat = useChatStore((state) => state.closeChat);
   const [activeRouteName, setActiveRouteName] = useState<string>();
 
   const navTheme = {
@@ -150,13 +153,13 @@ export function NavigationRoot() {
 
           {/* Chat FAB */}
           {isAuthenticated && !chatVisible && !hideChatFab && (
-            <ChatFab onPress={() => setChatVisible(true)} />
+            <ChatFab onPress={openChat} />
           )}
 
           {/* Chat Overlay */}
           {chatVisible && (
             <View style={StyleSheet.absoluteFill}>
-              <ChatScreen visible={chatVisible} onClose={() => setChatVisible(false)} />
+              <ChatScreen visible={chatVisible} onClose={closeChat} />
             </View>
           )}
         </NavigationContainer>

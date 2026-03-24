@@ -1,16 +1,20 @@
 import React, { memo, useState, useMemo, useCallback } from 'react';
-import { View, Text, StyleSheet, Pressable } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-import { X, Building2 } from 'lucide-react-native';
+import { X, Building2, ArrowRightLeft } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FlashList, type ListRenderItem } from '@shopify/flash-list';
 import { SearchBar } from '@/components/ui/SearchBar';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
-import { useTheme, spacing, radius } from '@/theme';
+import { Chip } from '@/components/ui/Chip';
+import { GlassCard } from '@/components/ui/GlassCard';
+import { useTheme, spacing } from '@/theme';
 import { typePresets } from '@/theme/typography';
 import { useDebounce } from '@/hooks/useDebounce';
 import { MOCK_COMPANIES } from '@/constants/mockData';
+import { formatNumber } from '@/utils/format';
+import { getCompanyDirectorySummary, getCompanySectors } from '@/utils/companyIntelligence';
 import type { Company } from '@/types/api';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '@/types/navigation';
@@ -41,6 +45,9 @@ const CompanyCardItem = memo(function CompanyCardItem({
       <Text style={[typePresets.monoSm, { color: colors.textTertiary, marginTop: 2 }]}>
         {item.ticker}
       </Text>
+      <Text style={[typePresets.bodySm, { color: colors.textSecondary, marginTop: spacing.xs }]} numberOfLines={1}>
+        {item.sector}
+      </Text>
       <View style={styles.companyMeta}>
         <Badge label={item.sentiment} variant={sentimentVariant} small />
         <Text style={[typePresets.labelSm, { color: colors.textSecondary }]}>
@@ -55,15 +62,25 @@ export function CompaniesScreen({ navigation }: Props) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const [search, setSearch] = useState('');
+  const [sectorFilter, setSectorFilter] = useState('All');
   const debouncedSearch = useDebounce(search);
+  const sectors = useMemo(() => getCompanySectors(), []);
 
   const filtered = useMemo(() => {
-    if (!debouncedSearch) return MOCK_COMPANIES;
-    return MOCK_COMPANIES.filter((c) =>
-      c.name.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
-      c.ticker.toLowerCase().includes(debouncedSearch.toLowerCase()),
-    );
-  }, [debouncedSearch]);
+    return MOCK_COMPANIES.filter((company) => {
+      const query = debouncedSearch.trim().toLowerCase();
+      const matchesQuery =
+        query.length === 0 ||
+        company.name.toLowerCase().includes(query) ||
+        company.ticker.toLowerCase().includes(query) ||
+        company.sector.toLowerCase().includes(query);
+      const matchesSector = sectorFilter === 'All' || company.sector === sectorFilter;
+
+      return matchesQuery && matchesSector;
+    });
+  }, [debouncedSearch, sectorFilter]);
+
+  const summary = useMemo(() => getCompanyDirectorySummary(filtered), [filtered]);
   const listContentContainerStyle = useMemo(
     () => ({
       paddingHorizontal: spacing.base - spacing.xs / 2,
@@ -76,6 +93,13 @@ export function CompaniesScreen({ navigation }: Props) {
     navigation.navigate('CompanyDetail', { companyId: company.id });
   }, [navigation]);
 
+  const handleOpenCompare = useCallback(() => {
+    navigation.navigate('CompetitorAnalysis', {
+      companyAId: filtered[0]?.id,
+      companyBId: filtered[1]?.id,
+    });
+  }, [filtered, navigation]);
+
   const renderCompany = useCallback<ListRenderItem<Company>>(({ item, index }) => {
     return (
       <Animated.View entering={FadeInDown.delay(index * 60).springify()} style={styles.cardWrapper}>
@@ -83,6 +107,69 @@ export function CompaniesScreen({ navigation }: Props) {
       </Animated.View>
     );
   }, [handleCompanyPress]);
+
+  const listHeader = useMemo(() => (
+    <View style={styles.headerContent}>
+      <GlassCard style={styles.summaryCard}>
+        <View style={styles.summaryTop}>
+          <View style={styles.summaryCopy}>
+            <Text style={[typePresets.h2, { color: colors.text }]}>Research Coverage</Text>
+            <Text style={[typePresets.bodySm, { color: colors.textSecondary, marginTop: spacing.xs }]}>
+              Scan active names, then jump into peer comparison when the set is narrow enough to evaluate.
+            </Text>
+          </View>
+          <Pressable
+            onPress={handleOpenCompare}
+            accessibilityRole="button"
+            accessibilityLabel="Open competitor analysis"
+            style={({ pressed }) => [styles.compareButton, { backgroundColor: colors.primary + '14' }, pressed && styles.pressed]}
+          >
+            <ArrowRightLeft size={18} color={colors.primary} strokeWidth={2} />
+          </Pressable>
+        </View>
+
+        <View style={styles.summaryStats}>
+          <View style={styles.summaryStat}>
+            <Text style={[typePresets.monoLg, { color: colors.text }]}>{summary.totalCompanies}</Text>
+            <Text style={[typePresets.labelXs, { color: colors.textTertiary }]}>COMPANIES</Text>
+          </View>
+          <View style={[styles.summaryDivider, { backgroundColor: colors.borderSubtle }]} />
+          <View style={styles.summaryStat}>
+            <Text style={[typePresets.monoLg, { color: colors.primary }]}>{formatNumber(summary.avgCoverage)}</Text>
+            <Text style={[typePresets.labelXs, { color: colors.textTertiary }]}>AVG COVERAGE</Text>
+          </View>
+          <View style={[styles.summaryDivider, { backgroundColor: colors.borderSubtle }]} />
+          <View style={styles.summaryStat}>
+            <Text style={[typePresets.monoLg, { color: colors.text }]}>{summary.positiveLeaders}</Text>
+            <Text style={[typePresets.labelXs, { color: colors.textTertiary }]}>POSITIVE</Text>
+          </View>
+        </View>
+      </GlassCard>
+
+      <View style={styles.searchRow}>
+        <SearchBar value={search} onChangeText={setSearch} placeholder="Search companies..." />
+      </View>
+
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.filterRow}
+      >
+        {sectors.map((sector) => (
+          <Chip
+            key={sector}
+            label={sector}
+            selected={sectorFilter === sector}
+            onPress={() => setSectorFilter(sector)}
+          />
+        ))}
+      </ScrollView>
+
+      <Text style={[typePresets.labelSm, { color: colors.textTertiary, paddingHorizontal: spacing.xs / 2, marginBottom: spacing.sm }]}>
+        Dominant sector: {summary.dominantSector}
+      </Text>
+    </View>
+  ), [colors.borderSubtle, colors.primary, colors.text, colors.textSecondary, colors.textTertiary, handleOpenCompare, search, sectorFilter, sectors, summary.avgCoverage, summary.dominantSector, summary.positiveLeaders, summary.totalCompanies]);
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}>
@@ -98,15 +185,12 @@ export function CompaniesScreen({ navigation }: Props) {
         </Pressable>
       </View>
 
-      <View style={styles.searchRow}>
-        <SearchBar value={search} onChangeText={setSearch} placeholder="Search companies..." />
-      </View>
-
       <FlashList
         data={filtered}
         keyExtractor={(item) => item.id}
         renderItem={renderCompany}
         numColumns={2}
+        ListHeaderComponent={listHeader}
         contentContainerStyle={listContentContainerStyle}
         showsVerticalScrollIndicator={false}
       />
@@ -132,9 +216,52 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  searchRow: {
-    paddingHorizontal: spacing.base,
+  headerContent: {
     marginBottom: spacing.base,
+  },
+  summaryCard: {
+    marginHorizontal: spacing.xs / 2,
+    marginBottom: spacing.base,
+  },
+  summaryTop: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.base,
+  },
+  summaryCopy: {
+    flex: 1,
+  },
+  compareButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    borderCurve: 'continuous',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  summaryStats: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: spacing.base,
+  },
+  summaryStat: {
+    flex: 1,
+    alignItems: 'center',
+    gap: spacing.xxs,
+  },
+  summaryDivider: {
+    width: 1,
+    height: 32,
+  },
+  searchRow: {
+    paddingHorizontal: spacing.xs / 2,
+    marginBottom: spacing.base,
+  },
+  filterRow: {
+    paddingHorizontal: spacing.xs / 2,
+    gap: spacing.sm,
+    alignItems: 'center',
+    marginBottom: spacing.sm,
   },
   cardWrapper: {
     flex: 1,

@@ -1,20 +1,41 @@
-import React from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import {
-  X, User, Palette, Bell, Radio, Users, Info, LogOut,
-  ChevronRight, Sun, Moon, Monitor,
+  X, Bell, Radio, Users, Info, LogOut,
+  ChevronRight, Sun, Moon, Monitor, Shield, UserRound,
 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Card } from '@/components/ui/Card';
 import { Toggle } from '@/components/ui/Toggle';
+import { Chip } from '@/components/ui/Chip';
+import { Input } from '@/components/ui/Input';
+import { Button } from '@/components/ui/Button';
+import { BottomSheetModal } from '@/components/ui/BottomSheetModal';
 import { useTheme, spacing, radius } from '@/theme';
 import { typePresets } from '@/theme/typography';
 import { useAuthStore } from '@/store/authStore';
+import {
+  getStoredAdminSettings,
+  saveStoredAdminSettings,
+  type AdminSettings,
+  type DeliveryChannel,
+  type SeverityFilter,
+} from '@/utils/adminPersistence';
+import { successNotification } from '@/utils/haptics';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '@/types/navigation';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Settings'>;
+type AccountDraft = Pick<AdminSettings, 'profileName' | 'profileEmail' | 'persona' | 'timezone' | 'language'>;
+
+const PERSONA_OPTIONS = ['Asset Manager', 'Research Analyst', 'Executive', 'Risk Officer'];
+const CHANNEL_OPTIONS: { label: string; value: DeliveryChannel }[] = [
+  { label: 'Push', value: 'push' },
+  { label: 'Email', value: 'email' },
+  { label: 'In-App', value: 'in-app' },
+];
+const SEVERITY_OPTIONS: SeverityFilter[] = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'];
 
 function SettingsRow({
   icon: Icon,
@@ -24,7 +45,7 @@ function SettingsRow({
   danger,
   rightElement,
 }: {
-  icon: any;
+  icon: React.ComponentType<{ size?: number; color?: string; strokeWidth?: number }>;
   label: string;
   value?: string;
   onPress?: () => void;
@@ -32,6 +53,7 @@ function SettingsRow({
   rightElement?: React.ReactNode;
 }) {
   const { colors } = useTheme();
+
   return (
     <Pressable
       onPress={onPress}
@@ -53,15 +75,120 @@ function SettingsRow({
   );
 }
 
+function buildDefaultSettings(user: ReturnType<typeof useAuthStore.getState>['user']): AdminSettings {
+  return {
+    profileName: user?.name ?? 'User',
+    profileEmail: user?.email ?? 'user@example.com',
+    persona: user?.persona ?? 'Asset Manager',
+    timezone: 'Africa/Cairo',
+    language: 'English',
+    pushNotifications: true,
+    crisisAlerts: true,
+    dailyDigest: false,
+    deliveryChannels: ['push', 'email', 'in-app'],
+    severityFilters: ['CRITICAL', 'HIGH'],
+    sessionLock: true,
+    biometricUnlock: false,
+  };
+}
+
 export function SettingsScreen({ navigation }: Props) {
   const { colors, mode, setMode } = useTheme();
   const insets = useSafeAreaInsets();
   const user = useAuthStore((state) => state.user);
   const signOut = useAuthStore((state) => state.signOut);
+  const defaultSettings = useMemo(() => buildDefaultSettings(user), [user]);
+  const [settings, setSettings] = useState<AdminSettings>(defaultSettings);
+  const [accountSheetVisible, setAccountSheetVisible] = useState(false);
+  const [accountDraft, setAccountDraft] = useState<AccountDraft>({
+    profileName: defaultSettings.profileName,
+    profileEmail: defaultSettings.profileEmail,
+    persona: defaultSettings.persona,
+    timezone: defaultSettings.timezone,
+    language: defaultSettings.language,
+  });
 
-  const handleSignOut = async () => {
+  useEffect(() => {
+    let isMounted = true;
+
+    getStoredAdminSettings(defaultSettings).then((storedSettings) => {
+      if (!isMounted) {
+        return;
+      }
+
+      const mergedSettings = { ...defaultSettings, ...storedSettings };
+      setSettings(mergedSettings);
+      setAccountDraft({
+        profileName: mergedSettings.profileName,
+        profileEmail: mergedSettings.profileEmail,
+        persona: mergedSettings.persona,
+        timezone: mergedSettings.timezone,
+        language: mergedSettings.language,
+      });
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [defaultSettings]);
+
+  const persistSettings = useCallback(async (nextSettings: AdminSettings) => {
+    setSettings(nextSettings);
+    await saveStoredAdminSettings(nextSettings);
+  }, []);
+
+  const handleSignOut = useCallback(async () => {
     await signOut();
-  };
+  }, [signOut]);
+
+  const updateBooleanSetting = useCallback(async (
+    key: keyof Pick<AdminSettings, 'pushNotifications' | 'crisisAlerts' | 'dailyDigest' | 'sessionLock' | 'biometricUnlock'>,
+    value: boolean,
+  ) => {
+    const nextSettings = { ...settings, [key]: value };
+    await persistSettings(nextSettings);
+  }, [persistSettings, settings]);
+
+  const handleToggleChannel = useCallback(async (channel: DeliveryChannel) => {
+    const nextChannels = settings.deliveryChannels.includes(channel)
+      ? settings.deliveryChannels.filter((item) => item !== channel)
+      : [...settings.deliveryChannels, channel];
+    const nextSettings = { ...settings, deliveryChannels: nextChannels };
+
+    await persistSettings(nextSettings);
+  }, [persistSettings, settings]);
+
+  const handleToggleSeverity = useCallback(async (severity: SeverityFilter) => {
+    const nextFilters = settings.severityFilters.includes(severity)
+      ? settings.severityFilters.filter((item) => item !== severity)
+      : [...settings.severityFilters, severity];
+    const nextSettings = { ...settings, severityFilters: nextFilters };
+
+    await persistSettings(nextSettings);
+  }, [persistSettings, settings]);
+
+  const handleSaveAccount = useCallback(async () => {
+    const nextSettings: AdminSettings = {
+      ...settings,
+      profileName: accountDraft.profileName.trim() || defaultSettings.profileName,
+      profileEmail: accountDraft.profileEmail.trim() || defaultSettings.profileEmail,
+      persona: accountDraft.persona.trim() || defaultSettings.persona,
+      timezone: accountDraft.timezone.trim() || defaultSettings.timezone,
+      language: accountDraft.language.trim() || defaultSettings.language,
+    };
+
+    await persistSettings(nextSettings);
+    setAccountSheetVisible(false);
+    successNotification();
+  }, [accountDraft, defaultSettings, persistSettings, settings]);
+
+  const deliverySummary = useMemo(() => (
+    settings.deliveryChannels.length > 0 ? settings.deliveryChannels.join(', ') : 'No channels selected'
+  ), [settings.deliveryChannels]);
+
+  const severitySummary = useMemo(() => (
+    settings.severityFilters.length > 0 ? settings.severityFilters.join(', ') : 'All severities muted'
+  ), [settings.severityFilters]);
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -82,28 +209,30 @@ export function SettingsScreen({ navigation }: Props) {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + spacing.xxl }]}
       >
-        {/* Profile */}
         <Animated.View entering={FadeInDown.delay(50).springify()}>
           <Text style={[typePresets.labelXs, styles.sectionLabel, { color: colors.textTertiary }]}>PROFILE</Text>
-          <Card>
+          <Card onPress={() => setAccountSheetVisible(true)}>
             <View style={styles.profileRow}>
               <View style={[styles.avatar, { backgroundColor: colors.primary + '20' }]}>
                 <Text style={[typePresets.h2, { color: colors.primary }]}>
-                  {(user?.name?.[0] || 'U').toUpperCase()}
+                  {(settings.profileName[0] || 'U').toUpperCase()}
                 </Text>
               </View>
               <View style={styles.profileInfo}>
-                <Text style={[typePresets.h3, { color: colors.text }]}>{user?.name || 'User'}</Text>
-                <Text style={[typePresets.bodySm, { color: colors.textSecondary }]}>{user?.email || 'user@example.com'}</Text>
+                <Text style={[typePresets.h3, { color: colors.text }]}>{settings.profileName}</Text>
+                <Text style={[typePresets.bodySm, { color: colors.textSecondary }]}>{settings.profileEmail}</Text>
                 <Text style={[typePresets.labelSm, { color: colors.primary, marginTop: 2 }]}>
-                  {user?.persona || 'Asset Manager'}
+                  {settings.persona}
+                </Text>
+                <Text style={[typePresets.labelXs, { color: colors.textTertiary, marginTop: spacing.xxs }]}>
+                  {settings.timezone} | {settings.language}
                 </Text>
               </View>
+              <ChevronRight size={18} color={colors.textTertiary} strokeWidth={1.8} />
             </View>
           </Card>
         </Animated.View>
 
-        {/* Appearance */}
         <Animated.View entering={FadeInDown.delay(100).springify()}>
           <Text style={[typePresets.labelXs, styles.sectionLabel, { color: colors.textTertiary }]}>APPEARANCE</Text>
           <Card>
@@ -112,25 +241,25 @@ export function SettingsScreen({ navigation }: Props) {
                 { key: 'light' as const, label: 'Light', Icon: Sun },
                 { key: 'dark' as const, label: 'Dark', Icon: Moon },
                 { key: 'system' as const, label: 'System', Icon: Monitor },
-              ].map((opt) => (
+              ].map((option) => (
                 <Pressable
-                  key={opt.key}
-                  onPress={() => setMode(opt.key)}
+                  key={option.key}
+                  onPress={() => setMode(option.key)}
                   accessibilityRole="radio"
-                  accessibilityLabel={`${opt.label} theme`}
-                  accessibilityState={{ selected: mode === opt.key }}
+                  accessibilityLabel={`${option.label} theme`}
+                  accessibilityState={{ selected: mode === option.key }}
                   style={({ pressed }) => [
                     styles.themeOption,
                     {
-                      backgroundColor: mode === opt.key ? colors.primary + '20' : colors.muted,
-                      borderColor: mode === opt.key ? colors.primary : 'transparent',
+                      backgroundColor: mode === option.key ? colors.primary + '20' : colors.muted,
+                      borderColor: mode === option.key ? colors.primary : 'transparent',
                     },
                     pressed && styles.pressed,
                   ]}
                 >
-                  <opt.Icon size={18} color={mode === opt.key ? colors.primary : colors.textSecondary} strokeWidth={2} />
-                  <Text style={[typePresets.labelSm, { color: mode === opt.key ? colors.primary : colors.textSecondary }]}>
-                    {opt.label}
+                  <option.Icon size={18} color={mode === option.key ? colors.primary : colors.textSecondary} strokeWidth={2} />
+                  <Text style={[typePresets.labelSm, { color: mode === option.key ? colors.primary : colors.textSecondary }]}>
+                    {option.label}
                   </Text>
                 </Pressable>
               ))}
@@ -138,42 +267,157 @@ export function SettingsScreen({ navigation }: Props) {
           </Card>
         </Animated.View>
 
-        {/* Notifications */}
         <Animated.View entering={FadeInDown.delay(150).springify()}>
           <Text style={[typePresets.labelXs, styles.sectionLabel, { color: colors.textTertiary }]}>NOTIFICATIONS</Text>
           <Card>
-            <SettingsRow icon={Bell} label="Push Notifications" rightElement={<Toggle value={true} onValueChange={() => {}} />} />
-            <SettingsRow icon={Bell} label="Crisis Alerts" rightElement={<Toggle value={true} onValueChange={() => {}} />} />
-            <SettingsRow icon={Bell} label="Daily Digest" rightElement={<Toggle value={false} onValueChange={() => {}} />} />
+            <SettingsRow
+              icon={Bell}
+              label="Push Notifications"
+              rightElement={<Toggle value={settings.pushNotifications} onValueChange={(value) => updateBooleanSetting('pushNotifications', value)} />}
+            />
+            <SettingsRow
+              icon={Bell}
+              label="Crisis Alerts"
+              rightElement={<Toggle value={settings.crisisAlerts} onValueChange={(value) => updateBooleanSetting('crisisAlerts', value)} />}
+            />
+            <SettingsRow
+              icon={Bell}
+              label="Daily Digest"
+              rightElement={<Toggle value={settings.dailyDigest} onValueChange={(value) => updateBooleanSetting('dailyDigest', value)} />}
+            />
           </Card>
         </Animated.View>
 
-        {/* Navigation */}
         <Animated.View entering={FadeInDown.delay(200).springify()}>
+          <Text style={[typePresets.labelXs, styles.sectionLabel, { color: colors.textTertiary }]}>DELIVERY</Text>
+          <Card>
+            <View>
+              <Text style={[typePresets.labelSm, { color: colors.textSecondary }]}>Channels</Text>
+              <Text style={[typePresets.bodySm, { color: colors.textTertiary, marginTop: spacing.xxs }]}>
+                {deliverySummary}
+              </Text>
+              <View style={styles.chipWrap}>
+                {CHANNEL_OPTIONS.map((option) => (
+                  <Chip
+                    key={option.value}
+                    label={option.label}
+                    selected={settings.deliveryChannels.includes(option.value)}
+                    onPress={() => handleToggleChannel(option.value)}
+                  />
+                ))}
+              </View>
+            </View>
+
+            <View style={[styles.divider, { backgroundColor: colors.borderSubtle }]} />
+
+            <View>
+              <Text style={[typePresets.labelSm, { color: colors.textSecondary }]}>Severity Thresholds</Text>
+              <Text style={[typePresets.bodySm, { color: colors.textTertiary, marginTop: spacing.xxs }]}>
+                {severitySummary}
+              </Text>
+              <View style={styles.chipWrap}>
+                {SEVERITY_OPTIONS.map((option) => (
+                  <Chip
+                    key={option}
+                    label={option}
+                    selected={settings.severityFilters.includes(option)}
+                    onPress={() => handleToggleSeverity(option)}
+                  />
+                ))}
+              </View>
+            </View>
+          </Card>
+        </Animated.View>
+
+        <Animated.View entering={FadeInDown.delay(250).springify()}>
           <Text style={[typePresets.labelXs, styles.sectionLabel, { color: colors.textTertiary }]}>DATA</Text>
           <Card>
             <SettingsRow icon={Radio} label="Content Sources" onPress={() => navigation.navigate('Sources')} />
-            {user?.capabilities?.can_manage_users && (
+            {user?.capabilities?.can_manage_users ? (
               <SettingsRow icon={Users} label="User Management" onPress={() => navigation.navigate('Users')} />
-            )}
+            ) : null}
           </Card>
         </Animated.View>
 
-        {/* About */}
-        <Animated.View entering={FadeInDown.delay(250).springify()}>
+        <Animated.View entering={FadeInDown.delay(300).springify()}>
+          <Text style={[typePresets.labelXs, styles.sectionLabel, { color: colors.textTertiary }]}>SECURITY</Text>
+          <Card>
+            <SettingsRow
+              icon={Shield}
+              label="Session Lock"
+              rightElement={<Toggle value={settings.sessionLock} onValueChange={(value) => updateBooleanSetting('sessionLock', value)} />}
+            />
+            <SettingsRow
+              icon={UserRound}
+              label="Biometric Unlock"
+              rightElement={<Toggle value={settings.biometricUnlock} onValueChange={(value) => updateBooleanSetting('biometricUnlock', value)} />}
+            />
+          </Card>
+        </Animated.View>
+
+        <Animated.View entering={FadeInDown.delay(350).springify()}>
           <Text style={[typePresets.labelXs, styles.sectionLabel, { color: colors.textTertiary }]}>ABOUT</Text>
           <Card>
             <SettingsRow icon={Info} label="App Version" value="1.0.0" />
           </Card>
         </Animated.View>
 
-        {/* Sign Out */}
-        <Animated.View entering={FadeInDown.delay(300).springify()}>
+        <Animated.View entering={FadeInDown.delay(400).springify()}>
           <Card style={{ marginTop: spacing.xl }}>
             <SettingsRow icon={LogOut} label="Sign Out" onPress={handleSignOut} danger />
           </Card>
         </Animated.View>
       </ScrollView>
+
+      <BottomSheetModal
+        visible={accountSheetVisible}
+        title="Account Preferences"
+        description="Adjust the mobile profile fields and analyst context shown throughout the app."
+        onClose={() => setAccountSheetVisible(false)}
+        footer={<Button label="Save preferences" onPress={handleSaveAccount} fullWidth />}
+      >
+        <Input
+          label="Display Name"
+          value={accountDraft.profileName}
+          onChangeText={(value) => setAccountDraft((current) => ({ ...current, profileName: value }))}
+          placeholder="Your display name"
+        />
+        <Input
+          label="Contact Email"
+          value={accountDraft.profileEmail}
+          onChangeText={(value) => setAccountDraft((current) => ({ ...current, profileEmail: value }))}
+          placeholder="name@company.com"
+          autoCapitalize="none"
+          keyboardType="email-address"
+        />
+        <View>
+          <Text style={[typePresets.label, { color: colors.textSecondary, marginBottom: spacing.sm }]}>
+            Persona
+          </Text>
+          <View style={styles.chipWrap}>
+            {PERSONA_OPTIONS.map((option) => (
+              <Chip
+                key={option}
+                label={option}
+                selected={accountDraft.persona === option}
+                onPress={() => setAccountDraft((current) => ({ ...current, persona: option }))}
+              />
+            ))}
+          </View>
+        </View>
+        <Input
+          label="Timezone"
+          value={accountDraft.timezone}
+          onChangeText={(value) => setAccountDraft((current) => ({ ...current, timezone: value }))}
+          placeholder="Africa/Cairo"
+        />
+        <Input
+          label="Language"
+          value={accountDraft.language}
+          onChangeText={(value) => setAccountDraft((current) => ({ ...current, language: value }))}
+          placeholder="English"
+        />
+      </BottomSheetModal>
     </View>
   );
 }
@@ -236,6 +480,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.md,
     paddingVertical: spacing.md,
+  },
+  chipWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    marginTop: spacing.sm,
+  },
+  divider: {
+    height: StyleSheet.hairlineWidth,
+    marginVertical: spacing.base,
   },
   pressed: {
     opacity: 0.8,

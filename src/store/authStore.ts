@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { UserProfile, TenantOption } from '@/types/api';
+import type { UserProfile, TenantOption, MembershipRole, TenantCreateInput } from '@/types/api';
 import * as authService from '@/services/auth';
 import { setUnauthorizedHandler } from '@/services/api';
 import * as storage from '@/utils/storage';
@@ -14,6 +14,14 @@ interface AuthState {
   isBootstrapping: boolean;
 
   signIn: (email: string, password: string) => Promise<{ needsTenantSelect: boolean }>;
+  register: (input: {
+    name: string;
+    email: string;
+    password: string;
+    role: MembershipRole;
+    tenantName?: string;
+  }) => Promise<{ needsTenantSelect: boolean }>;
+  createTenant: (input: TenantCreateInput) => Promise<TenantOption>;
   selectTenant: (tenantId: string) => Promise<void>;
   signOut: () => Promise<void>;
   bootstrap: () => Promise<void>;
@@ -44,6 +52,41 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
       set({ isLoading: false });
       return { needsTenantSelect: true };
+    } catch (error) {
+      set({ isLoading: false });
+      throw error;
+    }
+  },
+
+  register: async ({ name, email, password, role, tenantName }) => {
+    set({ isLoading: true });
+    try {
+      const { access_token } = await authService.register({ name, email, password, role, tenantName });
+      await storage.setToken(access_token);
+
+      const tenants = await authService.listTenants();
+      set({ token: access_token, tenants });
+
+      if (tenants.length === 1) {
+        await get().selectTenant(tenants[0].tenant_id);
+        return { needsTenantSelect: false };
+      }
+
+      set({ isLoading: false });
+      return { needsTenantSelect: true };
+    } catch (error) {
+      set({ isLoading: false });
+      throw error;
+    }
+  },
+
+  createTenant: async (input) => {
+    set({ isLoading: true });
+    try {
+      const tenant = await authService.createTenant(input);
+      const tenants = await authService.listTenants();
+      set({ tenants, isLoading: false });
+      return tenant;
     } catch (error) {
       set({ isLoading: false });
       throw error;

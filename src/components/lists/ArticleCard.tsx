@@ -17,6 +17,7 @@ interface Props {
   article: Article;
   mode?: 'compact' | 'expanded';
   onPress: (article: Article) => void;
+  onLongPress?: (article: Article) => void;
   index?: number;
 }
 
@@ -24,6 +25,7 @@ export const ArticleCard = memo(function ArticleCard({
   article,
   mode = 'expanded',
   onPress,
+  onLongPress,
 }: Props) {
   const { colors } = useTheme();
   const scale = useSharedValue(1);
@@ -41,6 +43,9 @@ export const ArticleCard = memo(function ArticleCard({
   };
 
   const handlePress = useCallback(() => onPress(article), [article, onPress]);
+  const handleLongPress = useCallback(() => {
+    onLongPress?.(article);
+  }, [article, onLongPress]);
 
   const sentimentLabel = getSentimentLabel(article.sentiment);
   const sentimentVariant = sentimentLabel === 'positive' ? 'success' : sentimentLabel === 'negative' ? 'danger' : 'warning';
@@ -49,6 +54,7 @@ export const ArticleCard = memo(function ArticleCard({
     return (
       <Pressable
         onPress={handlePress}
+        onLongPress={onLongPress ? handleLongPress : undefined}
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
         accessibilityRole="button"
@@ -94,6 +100,7 @@ export const ArticleCard = memo(function ArticleCard({
   return (
     <Pressable
       onPress={handlePress}
+      onLongPress={onLongPress ? handleLongPress : undefined}
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
       accessibilityRole="button"

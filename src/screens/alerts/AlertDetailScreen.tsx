@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
 import { ArrowLeft, AlertTriangle, Clock, Radio, Tag, CheckCircle } from 'lucide-react-native';
@@ -14,6 +14,8 @@ import { useTheme, spacing } from '@/theme';
 import { typePresets } from '@/theme/typography';
 import { formatDate, timeAgo } from '@/utils/format';
 import { MOCK_ALERTS, MOCK_ARTICLES } from '@/constants/mockData';
+import { getStoredAlerts, saveStoredAlerts, type ManagedAlert } from '@/utils/adminPersistence';
+import { successNotification } from '@/utils/haptics';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AlertsStackParamList } from '@/types/navigation';
 
@@ -26,12 +28,55 @@ const SEVERITY_COLORS: Record<string, string> = {
   LOW: '#8aa8ff',
 };
 
+function getFallbackAlert(alertId: string) {
+  return (MOCK_ALERTS.find((alert) => alert.id === alertId) ?? MOCK_ALERTS[0]) as ManagedAlert;
+}
+
 export function AlertDetailScreen({ route, navigation }: Props) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
-  const alert = MOCK_ALERTS.find((a) => a.id === route.params.alertId) ?? MOCK_ALERTS[0];
+  const [alert, setAlert] = useState<ManagedAlert>(() => getFallbackAlert(route.params.alertId));
   const severityColor = SEVERITY_COLORS[alert.severity] ?? colors.primary;
-  const relatedArticles = MOCK_ARTICLES.slice(0, 3);
+  const relatedArticles = useMemo(() => MOCK_ARTICLES.slice(0, 3), []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    getStoredAlerts(MOCK_ALERTS).then((storedAlerts) => {
+      if (!isMounted) {
+        return;
+      }
+
+      setAlert((storedAlerts.find((item) => item.id === route.params.alertId) ?? getFallbackAlert(route.params.alertId)) as ManagedAlert);
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [route.params.alertId]);
+
+  const handleOpenReport = useCallback(() => {
+    if (alert.type === 'crisis') {
+      navigation.navigate('CrisisDetail', { crisisId: alert.id });
+      return;
+    }
+
+    navigation.navigate('AlertTriggerDetail', {
+      alertId: alert.id,
+      triggerId: alert.id,
+    });
+  }, [alert.id, alert.type, navigation]);
+
+  const handleResolve = useCallback(async () => {
+    const storedAlerts = await getStoredAlerts(MOCK_ALERTS);
+    const nextAlerts = storedAlerts.map((item) => (
+      item.id === alert.id ? { ...item, isResolved: true } : item
+    ));
+
+    await saveStoredAlerts(nextAlerts);
+    setAlert((current) => ({ ...current, isResolved: true }));
+    successNotification();
+  }, [alert.id]);
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -53,29 +98,32 @@ export function AlertDetailScreen({ route, navigation }: Props) {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + spacing.xxl }]}
       >
-        {/* Severity Banner */}
         <Animated.View entering={FadeIn.duration(400)}>
-          <GlassCard style={{ borderLeftWidth: 4, borderLeftColor: severityColor }}>
-            <View style={styles.severityHeader}>
-              <AlertTriangle size={20} color={severityColor} strokeWidth={2} />
-              <Badge
-                label={alert.severity}
-                variant={alert.severity === 'CRITICAL' ? 'danger' : alert.severity === 'HIGH' ? 'warning' : 'primary'}
-              />
-              {alert.isResolved ? (
-                <Badge label="Resolved" variant="success" dot />
-              ) : null}
-            </View>
-            <Text style={[typePresets.displaySm, { color: colors.text, marginTop: spacing.md }]}>
-              {alert.title}
-            </Text>
-            <Text style={[typePresets.body, { color: colors.textSecondary, marginTop: spacing.sm }]}>
-              {alert.message}
-            </Text>
-          </GlassCard>
+          <Pressable
+            onPress={handleOpenReport}
+            accessibilityRole="button"
+            accessibilityLabel={`Open detailed report for ${alert.title}`}
+            style={({ pressed }) => pressed && styles.pressed}
+          >
+            <GlassCard style={{ borderLeftWidth: 4, borderLeftColor: severityColor }}>
+              <View style={styles.severityHeader}>
+                <AlertTriangle size={20} color={severityColor} strokeWidth={2} />
+                <Badge
+                  label={alert.severity}
+                  variant={alert.severity === 'CRITICAL' ? 'danger' : alert.severity === 'HIGH' ? 'warning' : 'primary'}
+                />
+                {alert.isResolved ? <Badge label="Resolved" variant="success" dot /> : null}
+              </View>
+              <Text style={[typePresets.displaySm, { color: colors.text, marginTop: spacing.md }]}>
+                {alert.title}
+              </Text>
+              <Text style={[typePresets.body, { color: colors.textSecondary, marginTop: spacing.sm }]}>
+                {alert.message}
+              </Text>
+            </GlassCard>
+          </Pressable>
         </Animated.View>
 
-        {/* Meta Info */}
         <Animated.View entering={FadeInDown.delay(100).springify()}>
           <Card style={styles.metaCard}>
             <View style={styles.metaRow}>
@@ -98,22 +146,40 @@ export function AlertDetailScreen({ route, navigation }: Props) {
                 </Text>
               </View>
             ) : null}
+            {alert.deliveryChannels?.length ? (
+              <View style={styles.metaRow}>
+                <Radio size={16} color={colors.textTertiary} strokeWidth={2} />
+                <Text style={[typePresets.bodySm, { color: colors.textSecondary }]}>
+                  Delivery: {alert.deliveryChannels.join(', ')}
+                </Text>
+              </View>
+            ) : null}
           </Card>
         </Animated.View>
 
-        {/* Keywords */}
         <Animated.View entering={FadeInDown.delay(200).springify()}>
           <Text style={[typePresets.h2, { color: colors.text, marginTop: spacing.xl, marginBottom: spacing.md }]}>
             Keywords
           </Text>
           <View style={styles.keywordsRow}>
-            {alert.keywords.map((kw) => (
-              <Chip key={kw} label={kw} />
+            {alert.keywords.map((keyword) => (
+              <Chip key={keyword} label={keyword} />
             ))}
           </View>
+          {alert.companyFilters?.length ? (
+            <>
+              <Text style={[typePresets.h3, { color: colors.text, marginTop: spacing.lg, marginBottom: spacing.sm }]}>
+                Company Scope
+              </Text>
+              <View style={styles.keywordsRow}>
+                {alert.companyFilters.map((company) => (
+                  <Chip key={company} label={company} selected />
+                ))}
+              </View>
+            </>
+          ) : null}
         </Animated.View>
 
-        {/* Sentiment Impact */}
         <Animated.View entering={FadeInDown.delay(300).springify()}>
           <Text style={[typePresets.h2, { color: colors.text, marginTop: spacing.xl, marginBottom: spacing.md }]}>
             Sentiment Impact
@@ -128,20 +194,18 @@ export function AlertDetailScreen({ route, navigation }: Props) {
           </Card>
         </Animated.View>
 
-        {/* Actions */}
-        {!alert.isResolved && (
+        {!alert.isResolved ? (
           <Animated.View entering={FadeInDown.delay(350).springify()} style={styles.actions}>
             <Button
               label="Mark as Resolved"
-              onPress={() => {}}
+              onPress={handleResolve}
               variant="primary"
               fullWidth
               icon={<CheckCircle size={18} color={colors.textInverse} strokeWidth={2} />}
             />
           </Animated.View>
-        )}
+        ) : null}
 
-        {/* Related Articles */}
         <Animated.View entering={FadeInDown.delay(400).springify()}>
           <Text style={[typePresets.h2, { color: colors.text, marginTop: spacing.xl, marginBottom: spacing.md }]}>
             Related Articles
@@ -150,7 +214,7 @@ export function AlertDetailScreen({ route, navigation }: Props) {
             <ArticleCard
               key={article.id}
               article={article}
-              onPress={(a) => navigation.navigate('ArticleDetail', { articleId: a.id })}
+              onPress={(selectedArticle) => navigation.navigate('ArticleDetail', { articleId: selectedArticle.id })}
             />
           ))}
         </Animated.View>

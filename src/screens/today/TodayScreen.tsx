@@ -46,6 +46,27 @@ export function TodayScreen() {
   const handleArticlePress = useCallback((article: Article) => {
     navigation.navigate('ArticleDetail', { articleId: article.id });
   }, [navigation]);
+  const handleArticleLongPress = useCallback((article: Article) => {
+    navigation.navigate('ArticleSummary', {
+      articleId: article.id,
+      deepDiveRoute: 'ArticleDeepDive',
+    });
+  }, [navigation]);
+  const handleCrisisPress = useCallback(() => {
+    const activeCrisis = criticalAlerts[0];
+
+    if (!activeCrisis) {
+      return;
+    }
+
+    rootNav.navigate('Main', {
+      screen: 'AlertsTab',
+      params: {
+        screen: 'CrisisDetail',
+        params: { crisisId: activeCrisis.id },
+      },
+    });
+  }, [criticalAlerts, rootNav]);
 
   const greeting = () => {
     const hour = new Date().getHours();
@@ -109,15 +130,22 @@ export function TodayScreen() {
       {/* Crisis Banner */}
       {criticalAlerts.length > 0 && (
         <Animated.View entering={FadeInDown.delay(100).springify()}>
-          <GlassCard style={{ ...styles.crisisBanner, borderColor: colors.danger + '40' }}>
-            <View style={styles.crisisHeader}>
-              <AlertTriangle size={18} color={colors.danger} fill={colors.danger + '30'} strokeWidth={2} />
-              <Text style={[typePresets.label, { color: colors.danger }]}>Active Crisis</Text>
-            </View>
-            <Text style={[typePresets.bodySm, { color: colors.text, marginTop: spacing.xs }]} numberOfLines={2}>
-              {criticalAlerts[0].title}
-            </Text>
-          </GlassCard>
+          <Pressable
+            onPress={handleCrisisPress}
+            accessibilityRole="button"
+            accessibilityLabel={`Open crisis report for ${criticalAlerts[0].title}`}
+            style={({ pressed }) => pressed && styles.pressed}
+          >
+            <GlassCard style={{ ...styles.crisisBanner, borderColor: colors.danger + '40' }}>
+              <View style={styles.crisisHeader}>
+                <AlertTriangle size={18} color={colors.danger} fill={colors.danger + '30'} strokeWidth={2} />
+                <Text style={[typePresets.label, { color: colors.danger }]}>Active Crisis</Text>
+              </View>
+              <Text style={[typePresets.bodySm, { color: colors.text, marginTop: spacing.xs }]} numberOfLines={2}>
+                {criticalAlerts[0].title}
+              </Text>
+            </GlassCard>
+          </Pressable>
         </Animated.View>
       )}
 
@@ -152,7 +180,11 @@ export function TodayScreen() {
         <Section title="Top Stories" onSeeAll={() => rootNav.navigate('Main', { screen: 'BrowseTab' })}>
           {MOCK_ARTICLES.slice(0, 5).map((article, index) => (
             <Animated.View key={article.id} entering={FadeInDown.delay(450 + index * 60).springify()}>
-              <ArticleCard article={article} onPress={handleArticlePress} />
+              <ArticleCard
+                article={article}
+                onPress={handleArticlePress}
+                onLongPress={handleArticleLongPress}
+              />
             </Animated.View>
           ))}
         </Section>

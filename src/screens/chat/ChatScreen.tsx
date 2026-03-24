@@ -12,6 +12,7 @@ import { typePresets, fontFamily } from '@/theme/typography';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { Chip } from '@/components/ui/Chip';
 import { MOCK_CHAT_ASSISTANTS } from '@/constants/mockData';
+import { useChatStore } from '@/store/chatStore';
 import type { ChatMessage } from '@/types/api';
 
 interface Props {
@@ -47,6 +48,17 @@ export function ChatScreen({ visible, onClose }: Props) {
   const [input, setInput] = useState('');
   const [selectedAssistant, setSelectedAssistant] = useState(MOCK_CHAT_ASSISTANTS[0]);
   const flatListRef = useRef<FlashListRef<ChatMessage>>(null);
+  const draftMessage = useChatStore((state) => state.draftMessage);
+  const clearDraftMessage = useChatStore((state) => state.clearDraftMessage);
+
+  React.useEffect(() => {
+    if (!visible || !draftMessage) {
+      return;
+    }
+
+    setInput((current) => current || draftMessage);
+    clearDraftMessage();
+  }, [clearDraftMessage, draftMessage, visible]);
 
   const handleSend = useCallback(() => {
     if (!input.trim()) return;

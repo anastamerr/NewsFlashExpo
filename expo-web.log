@@ -1,0 +1,19 @@
+  --non-interactive is not supported, use $CI=1 instead
+Starting project at F:\Dev\NewsFlashApp
+Starting Metro Bundler
+Waiting on http://localhost:19006
+Logs for your project will appear below.
+Web .\index.ts ▓▓▓▓▓▓▓░░░░░░░░░ 48.1% (344/497)
+Web .\index.ts ▓▓▓▓▓▓▓▓░░░░░░░░ 50.4% (1634/2962)
+Web .\index.ts ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 94.3% (3462/3682)
+Web Bundled 11950ms index.ts (4039 modules)
+ LOG  [web] Logs will appear in the browser console
+Web .\index.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web Bundled 128ms index.ts (1 module)
+ LOG  [web] Logs will appear in the browser console
+Web .\index.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web Bundled 118ms index.ts (1 module)
+ LOG  [web] Logs will appear in the browser console
+Web .\index.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web Bundled 89ms index.ts (1 module)
+ LOG  [web] Logs will appear in the browser console

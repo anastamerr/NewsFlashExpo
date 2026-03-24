@@ -17,6 +17,7 @@ import type { AlertPublic } from '@/types/api';
 interface Props {
   alert: AlertPublic;
   onPress: (alert: AlertPublic) => void;
+  onLongPress?: (alert: AlertPublic) => void;
 }
 
 const SEVERITY_CONFIG = {
@@ -26,7 +27,7 @@ const SEVERITY_CONFIG = {
   LOW: { color: '#8aa8ff', Icon: Info },
 } as const;
 
-export const AlertRow = memo(function AlertRow({ alert, onPress }: Props) {
+export const AlertRow = memo(function AlertRow({ alert, onPress, onLongPress }: Props) {
   const { colors } = useTheme();
   const scale = useSharedValue(1);
   const pulseOpacity = useSharedValue(1);
@@ -60,10 +61,14 @@ export const AlertRow = memo(function AlertRow({ alert, onPress }: Props) {
   };
 
   const handlePress = useCallback(() => onPress(alert), [alert, onPress]);
+  const handleLongPress = useCallback(() => {
+    onLongPress?.(alert);
+  }, [alert, onLongPress]);
 
   return (
     <Pressable
       onPress={handlePress}
+      onLongPress={onLongPress ? handleLongPress : undefined}
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
       accessibilityRole="button"
