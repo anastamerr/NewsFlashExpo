@@ -12,6 +12,7 @@ import { Chip } from '@/components/ui/Chip';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { BottomSheetModal } from '@/components/ui/BottomSheetModal';
+import { StateBlock } from '@/components/ui/StateBlock';
 import { useTheme, spacing, radius } from '@/theme';
 import { typePresets } from '@/theme/typography';
 import { useAuthStore } from '@/store/authStore';
@@ -99,7 +100,10 @@ export function SettingsScreen({ navigation }: Props) {
   const signOut = useAuthStore((state) => state.signOut);
   const defaultSettings = useMemo(() => buildDefaultSettings(user), [user]);
   const [settings, setSettings] = useState<AdminSettings>(defaultSettings);
+  const [isHydrating, setIsHydrating] = useState(true);
   const [accountSheetVisible, setAccountSheetVisible] = useState(false);
+  const [screenError, setScreenError] = useState('');
+  const [screenNotice, setScreenNotice] = useState('');
   const [accountDraft, setAccountDraft] = useState<AccountDraft>({
     profileName: defaultSettings.profileName,
     profileEmail: defaultSettings.profileEmail,
@@ -125,6 +129,14 @@ export function SettingsScreen({ navigation }: Props) {
         timezone: mergedSettings.timezone,
         language: mergedSettings.language,
       });
+      setIsHydrating(false);
+    }).catch(() => {
+      if (!isMounted) {
+        return;
+      }
+
+      setScreenError('Settings could not be loaded. Reopen the screen to retry.');
+      setIsHydrating(false);
     });
 
     return () => {
@@ -133,12 +145,26 @@ export function SettingsScreen({ navigation }: Props) {
   }, [defaultSettings]);
 
   const persistSettings = useCallback(async (nextSettings: AdminSettings) => {
-    setSettings(nextSettings);
-    await saveStoredAdminSettings(nextSettings);
+    setScreenError('');
+    setScreenNotice('');
+
+    try {
+      setSettings(nextSettings);
+      await saveStoredAdminSettings(nextSettings);
+      setScreenNotice('Preferences saved.');
+      return true;
+    } catch {
+      setScreenError('Unable to save preferences right now.');
+      return false;
+    }
   }, []);
 
   const handleSignOut = useCallback(async () => {
-    await signOut();
+    try {
+      await signOut();
+    } catch {
+      setScreenError('Sign out failed. Please try again.');
+    }
   }, [signOut]);
 
   const updateBooleanSetting = useCallback(async (
@@ -177,7 +203,12 @@ export function SettingsScreen({ navigation }: Props) {
       language: accountDraft.language.trim() || defaultSettings.language,
     };
 
-    await persistSettings(nextSettings);
+    const didSave = await persistSettings(nextSettings);
+
+    if (!didSave) {
+      return;
+    }
+
     setAccountSheetVisible(false);
     successNotification();
   }, [accountDraft, defaultSettings, persistSettings, settings]);
@@ -209,6 +240,28 @@ export function SettingsScreen({ navigation }: Props) {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + spacing.xxl }]}
       >
+        {isHydrating ? (
+          <StateBlock
+            title="Loading settings"
+            message="Preparing account preferences and delivery controls."
+            loading
+          />
+        ) : null}
+
+        {screenError ? (
+          <View style={styles.stateWrap}>
+            <StateBlock title="Settings unavailable" message={screenError} />
+          </View>
+        ) : null}
+
+        {screenNotice ? (
+          <Text style={[typePresets.bodySm, styles.noticeText, { color: colors.primary }]}>
+            {screenNotice}
+          </Text>
+        ) : null}
+
+        {!isHydrating ? (
+          <>
         <Animated.View entering={FadeInDown.delay(50).springify()}>
           <Text style={[typePresets.labelXs, styles.sectionLabel, { color: colors.textTertiary }]}>PROFILE</Text>
           <Card onPress={() => setAccountSheetVisible(true)}>
@@ -367,6 +420,8 @@ export function SettingsScreen({ navigation }: Props) {
             <SettingsRow icon={LogOut} label="Sign Out" onPress={handleSignOut} danger />
           </Card>
         </Animated.View>
+          </>
+        ) : null}
       </ScrollView>
 
       <BottomSheetModal
@@ -444,6 +499,13 @@ const styles = StyleSheet.create({
     marginTop: spacing.xl,
     marginBottom: spacing.sm,
     paddingLeft: spacing.xs,
+  },
+  stateWrap: {
+    marginTop: spacing.base,
+  },
+  noticeText: {
+    marginTop: spacing.base,
+    textAlign: 'center',
   },
   profileRow: {
     flexDirection: 'row',

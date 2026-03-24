@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet, KeyboardAvoidingView, Platform, Pressable, ScrollView } from 'react-native';
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -9,77 +9,31 @@ import { typePresets, fontFamily } from '@/theme/typography';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { Chip } from '@/components/ui/Chip';
+import { Toggle } from '@/components/ui/Toggle';
 import { useAuthStore } from '@/store/authStore';
 import { requestPasswordReset } from '@/services/auth';
-import type { MembershipRole } from '@/types/api';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AuthStackParamList } from '@/types/navigation';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Login'>;
 type AuthMode = 'signin' | 'signup';
 
-const DEMO_EMAILS = ['demo@newsflash.ai', 'analyst@newsflash.ai', 'executive@newsflash.ai'];
-const ROLE_OPTIONS: { value: MembershipRole; label: string }[] = [
-  { value: 'tenant-superuser', label: 'Tenant Superuser' },
-  { value: 'member', label: 'Member' },
-  { value: 'global-superuser', label: 'Global Superuser' },
-];
-
 export function LoginScreen({ navigation }: Props) {
   const { colors } = useTheme();
   const signIn = useAuthStore((state) => state.signIn);
-  const register = useAuthStore((state) => state.register);
   const isLoading = useAuthStore((state) => state.isLoading);
   const [mode, setMode] = useState<AuthMode>('signin');
   const [name, setName] = useState('');
-  const [tenantName, setTenantName] = useState('');
   const [email, setEmail] = useState('demo@newsflash.ai');
   const [password, setPassword] = useState('demo123');
-  const [selectedRole, setSelectedRole] = useState<MembershipRole>('tenant-superuser');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [rememberSession, setRememberSession] = useState(true);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
 
-  const handleAuth = useCallback(async () => {
-    if (!email || !password || (mode === 'signup' && !name.trim())) {
-      setError(mode === 'signup' ? 'Complete name, email, and password to create an account.' : 'Please enter your email and password.');
-      return;
-    }
-
-    setError('');
-    setNotice('');
-
-    try {
-      const result = mode === 'signin'
-        ? await signIn(email, password)
-        : await register({
-            name: name.trim(),
-            email,
-            password,
-            role: selectedRole,
-            tenantName: tenantName.trim(),
-          });
-
-      if (result.needsTenantSelect) {
-        navigation.navigate('TenantSelect');
-      }
-    } catch (err: any) {
-      setError(err.message || 'Authentication failed. Please try again.');
-    }
-  }, [email, mode, name, navigation, password, register, selectedRole, signIn, tenantName]);
-
-  const handleForgotPassword = useCallback(async () => {
-    if (!email.trim()) {
-      setError('Enter your email first, then request a reset link.');
-      return;
-    }
-
-    setError('');
-    await requestPasswordReset(email.trim());
-    setNotice(`Password reset instructions sent to ${email.trim()}.`);
-  }, [email]);
-
-  const passwordToggle = (
+  const passwordToggle = useMemo(() => (
     <Pressable
       onPress={() => setShowPassword((current) => !current)}
       accessibilityRole="button"
@@ -92,7 +46,93 @@ export function LoginScreen({ navigation }: Props) {
         <Eye size={18} color={colors.textTertiary} strokeWidth={2} />
       )}
     </Pressable>
-  );
+  ), [colors.textTertiary, showPassword]);
+
+  const confirmPasswordToggle = useMemo(() => (
+    <Pressable
+      onPress={() => setShowConfirmPassword((current) => !current)}
+      accessibilityRole="button"
+      accessibilityLabel={showConfirmPassword ? 'Hide password confirmation' : 'Show password confirmation'}
+      style={({ pressed }) => pressed && styles.pressed}
+    >
+      {showConfirmPassword ? (
+        <EyeOff size={18} color={colors.textTertiary} strokeWidth={2} />
+      ) : (
+        <Eye size={18} color={colors.textTertiary} strokeWidth={2} />
+      )}
+    </Pressable>
+  ), [colors.textTertiary, showConfirmPassword]);
+
+  const handleModeChange = useCallback((nextMode: AuthMode) => {
+    setMode(nextMode);
+    setError('');
+    setNotice('');
+  }, []);
+
+  const handleAuth = useCallback(async () => {
+    const trimmedEmail = email.trim().toLowerCase();
+
+    if (!trimmedEmail || !password) {
+      setError(mode === 'signup' ? 'Complete the required account fields to continue.' : 'Please enter your email and password.');
+      return;
+    }
+
+    if (mode === 'signup') {
+      if (!name.trim()) {
+        setError('Add your full name to create the account.');
+        return;
+      }
+
+      if (password.length < 6) {
+        setError('Use at least 6 characters for the account password.');
+        return;
+      }
+
+      if (password !== confirmPassword) {
+        setError('Password confirmation does not match.');
+        return;
+      }
+    }
+
+    setError('');
+    setNotice('');
+
+    try {
+      if (mode === 'signup') {
+        navigation.navigate('SignupOnboarding', {
+          name: name.trim(),
+          email: trimmedEmail,
+          password,
+          rememberSession,
+        });
+        return;
+      }
+
+      const result = await signIn(trimmedEmail, password, rememberSession);
+      if (result.needsTenantSelect) {
+        navigation.navigate('TenantSelect');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Authentication failed. Please try again.');
+    }
+  }, [confirmPassword, email, mode, name, navigation, password, rememberSession, signIn]);
+
+  const handleForgotPassword = useCallback(async () => {
+    if (!email.trim()) {
+      setError('Enter your email first, then request a reset link.');
+      return;
+    }
+
+    setError('');
+    setNotice('');
+
+    try {
+      await requestPasswordReset(email.trim());
+      setNotice(`Password reset instructions sent to ${email.trim()}.`);
+    } catch (err: any) {
+      setError(err.message || 'Unable to send reset instructions right now.');
+    }
+  }, [email]);
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -120,8 +160,8 @@ export function LoginScreen({ navigation }: Props) {
           </Animated.View>
 
           <Animated.View entering={FadeInDown.delay(220).springify().damping(15)} style={styles.modeRow}>
-            <Chip label="Sign In" selected={mode === 'signin'} onPress={() => setMode('signin')} />
-            <Chip label="Sign Up" selected={mode === 'signup'} onPress={() => setMode('signup')} />
+            <Chip label="Sign In" selected={mode === 'signin'} onPress={() => handleModeChange('signin')} />
+            <Chip label="Sign Up" selected={mode === 'signup'} onPress={() => handleModeChange('signup')} />
           </Animated.View>
 
           <Animated.View entering={FadeInDown.delay(300).springify().damping(15)} style={styles.form}>
@@ -133,28 +173,6 @@ export function LoginScreen({ navigation }: Props) {
                   value={name}
                   onChangeText={setName}
                 />
-                <Input
-                  label="Workspace Name"
-                  placeholder="NewsFlash Research"
-                  value={tenantName}
-                  onChangeText={setTenantName}
-                  hint="Leave blank to finish account setup without creating a workspace."
-                />
-                <View style={styles.roleBlock}>
-                  <Text style={[typePresets.label, { color: colors.textSecondary, marginBottom: spacing.sm }]}>
-                    Role
-                  </Text>
-                  <View style={styles.roleRow}>
-                    {ROLE_OPTIONS.map((role) => (
-                      <Chip
-                        key={role.value}
-                        label={role.label}
-                        selected={selectedRole === role.value}
-                        onPress={() => setSelectedRole(role.value)}
-                      />
-                    ))}
-                  </View>
-                </View>
               </>
             ) : null}
 
@@ -174,18 +192,53 @@ export function LoginScreen({ navigation }: Props) {
               onChangeText={setPassword}
               secureTextEntry={!showPassword}
               autoComplete={mode === 'signin' ? 'password' : 'new-password'}
-              error={error}
               rightIcon={passwordToggle}
             />
 
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.demoRow}>
-              {DEMO_EMAILS.map((demoEmail) => (
-                <Chip key={demoEmail} label={demoEmail} selected={email === demoEmail} onPress={() => setEmail(demoEmail)} />
-              ))}
-            </ScrollView>
+            {mode === 'signup' ? (
+              <Input
+                label="Confirm Password"
+                placeholder="Repeat your password"
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
+                secureTextEntry={!showConfirmPassword}
+                autoComplete="new-password"
+                rightIcon={confirmPasswordToggle}
+              />
+            ) : null}
+
+            {mode === 'signup' ? (
+              <Text style={[typePresets.bodySm, { color: colors.textSecondary }]}>
+                Role, persona, and workspace setup continue on the next step.
+              </Text>
+            ) : null}
+
+            <View
+              style={[
+                styles.utilityRow,
+                {
+                  backgroundColor: colors.surface,
+                  borderColor: colors.borderSubtle,
+                },
+              ]}
+            >
+              <View style={styles.utilityCopy}>
+                <Text style={[typePresets.labelSm, { color: colors.text }]}>Remember this device</Text>
+                <Text style={[typePresets.bodySm, { color: colors.textSecondary }]}>
+                  Keep the session after the app restarts.
+                </Text>
+              </View>
+              <Toggle value={rememberSession} onValueChange={setRememberSession} />
+            </View>
+
+            {error ? (
+              <Text style={[typePresets.bodySm, styles.feedbackText, { color: colors.danger }]}>
+                {error}
+              </Text>
+            ) : null}
 
             {notice ? (
-              <Text style={[typePresets.bodySm, { color: colors.primary, marginTop: spacing.sm }]}>
+              <Text style={[typePresets.bodySm, styles.feedbackText, { color: colors.primary }]}>
                 {notice}
               </Text>
             ) : null}
@@ -193,7 +246,7 @@ export function LoginScreen({ navigation }: Props) {
 
           <Animated.View entering={FadeInDown.delay(500).springify().damping(15)} style={styles.actions}>
             <Button
-              label={mode === 'signin' ? 'Sign In' : 'Create Account'}
+              label={mode === 'signin' ? 'Sign In' : 'Continue'}
               onPress={handleAuth}
               loading={isLoading}
               fullWidth
@@ -261,17 +314,23 @@ const styles = StyleSheet.create({
   form: {
     marginBottom: spacing.lg,
   },
-  roleBlock: {
-    marginBottom: spacing.base,
-  },
-  roleRow: {
+  utilityRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderRadius: radius.lg,
+    borderCurve: 'continuous',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    gap: spacing.base,
   },
-  demoRow: {
-    gap: spacing.sm,
-    paddingTop: spacing.xs,
+  utilityCopy: {
+    flex: 1,
+    gap: spacing.xxs,
+  },
+  feedbackText: {
+    marginTop: spacing.sm,
   },
   actions: {
     marginBottom: spacing.xxl,

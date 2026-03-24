@@ -13,13 +13,15 @@ interface AuthState {
   isLoading: boolean;
   isBootstrapping: boolean;
 
-  signIn: (email: string, password: string) => Promise<{ needsTenantSelect: boolean }>;
+  signIn: (email: string, password: string, rememberSession: boolean) => Promise<{ needsTenantSelect: boolean }>;
   register: (input: {
     name: string;
     email: string;
     password: string;
     role: MembershipRole;
+    persona: string;
     tenantName?: string;
+    rememberSession: boolean;
   }) => Promise<{ needsTenantSelect: boolean }>;
   createTenant: (input: TenantCreateInput) => Promise<TenantOption>;
   selectTenant: (tenantId: string) => Promise<void>;
@@ -36,11 +38,17 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   isLoading: false,
   isBootstrapping: true,
 
-  signIn: async (email, password) => {
+  signIn: async (email, password, rememberSession) => {
     set({ isLoading: true });
     try {
       const { access_token } = await authService.login(email, password);
-      await storage.setToken(access_token);
+      if (rememberSession) {
+        await storage.setToken(access_token);
+      } else {
+        storage.setVolatileToken(access_token);
+        await storage.clearPersistedToken();
+      }
+      await storage.setRememberSession(rememberSession);
 
       const tenants = await authService.listTenants();
       set({ token: access_token, tenants });
@@ -58,11 +66,17 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
 
-  register: async ({ name, email, password, role, tenantName }) => {
+  register: async ({ name, email, password, role, persona, tenantName, rememberSession }) => {
     set({ isLoading: true });
     try {
-      const { access_token } = await authService.register({ name, email, password, role, tenantName });
-      await storage.setToken(access_token);
+      const { access_token } = await authService.register({ name, email, password, role, persona, tenantName });
+      if (rememberSession) {
+        await storage.setToken(access_token);
+      } else {
+        storage.setVolatileToken(access_token);
+        await storage.clearPersistedToken();
+      }
+      await storage.setRememberSession(rememberSession);
 
       const tenants = await authService.listTenants();
       set({ token: access_token, tenants });
@@ -124,10 +138,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   bootstrap: async () => {
     try {
+      const rememberSession = await storage.getRememberSession();
       const token = await storage.getToken();
       const tenantId = await storage.getTenantId();
 
-      if (!token) {
+      if (!rememberSession || !token) {
+        if (!rememberSession) {
+          await storage.clearAll();
+        }
         set({ isBootstrapping: false });
         return;
       }

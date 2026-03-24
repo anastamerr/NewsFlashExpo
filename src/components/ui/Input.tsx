@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { View, TextInput, Text, StyleSheet, type TextInputProps } from 'react-native';
+import { View, TextInput, Text, StyleSheet, Platform, type TextInputProps } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -30,6 +30,17 @@ export function Input({
 }: Props) {
   const { colors } = useTheme();
   const focus = useSharedValue(0);
+  const [isFocused, setIsFocused] = useState(false);
+
+  const focusFrameStyle = useAnimatedStyle(() => ({
+    borderColor: error
+      ? colors.danger + '24'
+      : interpolateColor(
+          focus.value,
+          [0, 1],
+          ['transparent', colors.primary + '2e'],
+        ),
+  }));
 
   const borderStyle = useAnimatedStyle(() => ({
     borderColor: error
@@ -42,11 +53,13 @@ export function Input({
   }));
 
   const handleFocus = useCallback((e: any) => {
+    setIsFocused(true);
     focus.value = withTiming(1, { duration: 200 });
     props.onFocus?.(e);
   }, [props.onFocus]);
 
   const handleBlur = useCallback((e: any) => {
+    setIsFocused(false);
     focus.value = withTiming(0, { duration: 200 });
     props.onBlur?.(e);
   }, [props.onBlur]);
@@ -60,29 +73,38 @@ export function Input({
       ) : null}
       <AnimatedView
         style={[
-          styles.inputContainer,
-          { backgroundColor: colors.inputBackground },
-          borderStyle,
+          styles.focusFrame,
+          focusFrameStyle,
         ]}
       >
-        {leftIcon ? <View style={styles.iconLeft}>{leftIcon}</View> : null}
-        <TextInput
-          {...props}
-          onFocus={handleFocus}
-          onBlur={handleBlur}
-          placeholderTextColor={colors.textTertiary}
-          accessibilityLabel={label || props.placeholder}
-          accessibilityHint={error ? `Error: ${error}` : undefined}
+        <AnimatedView
           style={[
-            styles.input,
-            {
-              color: colors.text,
-              fontFamily: fontFamily.sans,
-            },
-            style,
+            styles.inputContainer,
+            { backgroundColor: colors.inputBackground },
+            borderStyle,
+            isFocused && { backgroundColor: colors.surface },
           ]}
-        />
-        {rightIcon ? <View style={styles.iconRight}>{rightIcon}</View> : null}
+        >
+          {leftIcon ? <View style={styles.iconLeft}>{leftIcon}</View> : null}
+          <TextInput
+            {...props}
+            onFocus={handleFocus}
+            onBlur={handleBlur}
+            placeholderTextColor={colors.textTertiary}
+            accessibilityLabel={label || props.placeholder}
+            accessibilityHint={error ? `Error: ${error}` : undefined}
+            style={[
+              styles.input,
+              {
+                color: colors.text,
+                fontFamily: fontFamily.sans,
+              },
+              Platform.OS === 'web' ? styles.webInput : null,
+              style,
+            ]}
+          />
+          {rightIcon ? <View style={styles.iconRight}>{rightIcon}</View> : null}
+        </AnimatedView>
       </AnimatedView>
       {error ? (
         <Text style={[typePresets.bodySm, { color: colors.danger, marginTop: spacing.xs }]}>
@@ -101,6 +123,12 @@ export function Input({
 const styles = StyleSheet.create({
   wrapper: {
     marginBottom: spacing.base,
+  },
+  focusFrame: {
+    borderRadius: radius.lg,
+    borderCurve: 'continuous',
+    borderWidth: 2,
+    padding: 2,
   },
   inputContainer: {
     flexDirection: 'row',
@@ -121,5 +149,8 @@ const styles = StyleSheet.create({
   },
   iconRight: {
     marginLeft: spacing.sm,
+  },
+  webInput: {
+    outlineWidth: 0,
   },
 });

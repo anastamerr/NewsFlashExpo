@@ -36,6 +36,7 @@ export interface TenantOption {
 
 export interface TenantCreateInput {
   name: string;
+  slug?: string;
   description?: string;
 }
 

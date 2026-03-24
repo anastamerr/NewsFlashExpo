@@ -13,6 +13,7 @@ const USE_MOCK_AUTH = true;
 let mockSessionEmail = 'demo@newsflash.ai';
 let mockSessionName = 'Demo Analyst';
 let mockSessionRole: MembershipRole = 'tenant-superuser';
+let mockSessionPersona = 'Asset Manager';
 const INITIAL_MOCK_TENANTS: TenantOption[] = [
   {
     tenant_id: 'newsflash-demo',
@@ -61,7 +62,7 @@ export async function getProfile(tenantId: string): Promise<UserProfile> {
       email: mockSessionEmail,
       name: mockSessionName,
       role: membership?.role ?? mockSessionRole,
-      persona: 'Asset Manager',
+      persona: mockSessionPersona,
       tenant_id: tenantId,
       tenant_name: membership?.tenant_name ?? 'NewsFlash Demo Workspace',
       capabilities: {
@@ -92,12 +93,14 @@ export async function register(input: {
   email: string;
   password: string;
   role: MembershipRole;
+  persona: string;
   tenantName?: string;
 }): Promise<TokenResponse> {
   if (USE_MOCK_AUTH) {
     mockSessionEmail = input.email || mockSessionEmail;
     mockSessionName = input.name || mockSessionName;
     mockSessionRole = input.role;
+    mockSessionPersona = input.persona || mockSessionPersona;
 
     if (input.tenantName?.trim()) {
       const createdTenant = await createTenant({ name: input.tenantName.trim() });
@@ -130,16 +133,19 @@ export async function requestPasswordReset(email: string): Promise<void> {
 
 export async function createTenant(input: TenantCreateInput): Promise<TenantOption> {
   if (USE_MOCK_AUTH) {
+    const tenantId = input.slug?.trim() || input.name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-');
+
+    if (mockTenants.some((item) => item.tenant_id === tenantId)) {
+      throw new Error('That workspace slug is already in use. Choose a different one.');
+    }
+
     const tenant: TenantOption = {
-      tenant_id: input.name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+      tenant_id: tenantId,
       tenant_name: input.name.trim(),
       role: mockSessionRole === 'member' ? 'tenant-superuser' : mockSessionRole,
     };
 
-    if (!mockTenants.some((item) => item.tenant_id === tenant.tenant_id)) {
-      mockTenants = [...mockTenants, tenant];
-    }
-
+    mockTenants = [...mockTenants, tenant];
     return tenant;
   }
 

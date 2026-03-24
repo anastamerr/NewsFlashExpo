@@ -52,6 +52,12 @@ export type RootStackParamList = {
 
 export type AuthStackParamList = {
   Login: undefined;
+  SignupOnboarding: {
+    name: string;
+    email: string;
+    password: string;
+    rememberSession: boolean;
+  };
   TenantSelect: undefined;
 };
 

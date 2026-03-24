@@ -4,6 +4,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const TOKEN_KEY = 'newsflash_token';
 const TENANT_KEY = 'newsflash_tenant_id';
 const TOKEN_FALLBACK_KEY = 'newsflash_token_fallback';
+const REMEMBER_SESSION_KEY = 'newsflash_remember_session';
+let volatileToken: string | null = null;
 
 async function canUseSecureStore() {
   try {
@@ -21,16 +23,18 @@ async function canUseSecureStore() {
 export async function getToken(): Promise<string | null> {
   try {
     if (await canUseSecureStore()) {
-      return await SecureStore.getItemAsync(TOKEN_KEY);
+      return await SecureStore.getItemAsync(TOKEN_KEY) ?? volatileToken;
     }
 
-    return await AsyncStorage.getItem(TOKEN_FALLBACK_KEY);
+    return await AsyncStorage.getItem(TOKEN_FALLBACK_KEY) ?? volatileToken;
   } catch {
-    return null;
+    return volatileToken;
   }
 }
 
 export async function setToken(token: string): Promise<void> {
+  volatileToken = token;
+
   if (await canUseSecureStore()) {
     await SecureStore.setItemAsync(TOKEN_KEY, token);
     await AsyncStorage.removeItem(TOKEN_FALLBACK_KEY);
@@ -41,6 +45,11 @@ export async function setToken(token: string): Promise<void> {
 }
 
 export async function removeToken(): Promise<void> {
+  volatileToken = null;
+  await clearPersistedToken();
+}
+
+export async function clearPersistedToken(): Promise<void> {
   if (await canUseSecureStore()) {
     await SecureStore.deleteItemAsync(TOKEN_KEY);
   }
@@ -65,5 +74,25 @@ export async function removeTenantId(): Promise<void> {
 }
 
 export async function clearAll(): Promise<void> {
-  await Promise.all([removeToken(), removeTenantId()]);
+  await Promise.all([removeToken(), removeTenantId(), removeRememberSession()]);
+}
+
+export function setVolatileToken(token: string | null): void {
+  volatileToken = token;
+}
+
+export async function getRememberSession(): Promise<boolean> {
+  try {
+    return (await AsyncStorage.getItem(REMEMBER_SESSION_KEY)) === 'true';
+  } catch {
+    return false;
+  }
+}
+
+export async function setRememberSession(value: boolean): Promise<void> {
+  await AsyncStorage.setItem(REMEMBER_SESSION_KEY, value ? 'true' : 'false');
+}
+
+export async function removeRememberSession(): Promise<void> {
+  await AsyncStorage.removeItem(REMEMBER_SESSION_KEY);
 }
