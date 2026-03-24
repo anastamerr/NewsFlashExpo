@@ -207,15 +207,10 @@ export function LoginScreen({ navigation }: Props) {
               />
             ) : null}
 
-            {mode === 'signup' ? (
-              <Text style={[typePresets.bodySm, { color: colors.textSecondary }]}>
-                Role, persona, and workspace setup continue on the next step.
-              </Text>
-            ) : null}
-
             <View
               style={[
                 styles.utilityRow,
+                mode === 'signup' && styles.signupUtilityRow,
                 {
                   backgroundColor: colors.surface,
                   borderColor: colors.borderSubtle,
@@ -324,6 +319,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.md,
     gap: spacing.base,
+  },
+  signupUtilityRow: {
+    marginTop: spacing.sm,
   },
   utilityCopy: {
     flex: 1,

@@ -32,17 +32,12 @@ export function Input({
   const focus = useSharedValue(0);
   const [isFocused, setIsFocused] = useState(false);
 
-  const focusFrameStyle = useAnimatedStyle(() => ({
-    borderColor: error
-      ? colors.danger + '24'
-      : interpolateColor(
-          focus.value,
-          [0, 1],
-          ['transparent', colors.primary + '2e'],
-        ),
-  }));
-
-  const borderStyle = useAnimatedStyle(() => ({
+  const containerStyle = useAnimatedStyle(() => ({
+    backgroundColor: interpolateColor(
+      focus.value,
+      [0, 1],
+      [colors.inputBackground, colors.surface],
+    ),
     borderColor: error
       ? colors.danger
       : interpolateColor(
@@ -73,38 +68,36 @@ export function Input({
       ) : null}
       <AnimatedView
         style={[
-          styles.focusFrame,
-          focusFrameStyle,
+          styles.inputContainer,
+          containerStyle,
+          isFocused && [
+            styles.focusedField,
+            {
+              shadowColor: error ? colors.danger : colors.primary,
+            },
+          ],
         ]}
       >
-        <AnimatedView
+        {leftIcon ? <View style={styles.iconLeft}>{leftIcon}</View> : null}
+        <TextInput
+          {...props}
+          onFocus={handleFocus}
+          onBlur={handleBlur}
+          placeholderTextColor={colors.textTertiary}
+          accessibilityLabel={label || props.placeholder}
+          accessibilityHint={error ? `Error: ${error}` : undefined}
           style={[
-            styles.inputContainer,
-            { backgroundColor: colors.inputBackground },
-            borderStyle,
-            isFocused && { backgroundColor: colors.surface },
+            styles.input,
+            props.multiline && styles.multilineInput,
+            {
+              color: colors.text,
+              fontFamily: fontFamily.sans,
+            },
+            Platform.OS === 'web' ? styles.webInput : null,
+            style,
           ]}
-        >
-          {leftIcon ? <View style={styles.iconLeft}>{leftIcon}</View> : null}
-          <TextInput
-            {...props}
-            onFocus={handleFocus}
-            onBlur={handleBlur}
-            placeholderTextColor={colors.textTertiary}
-            accessibilityLabel={label || props.placeholder}
-            accessibilityHint={error ? `Error: ${error}` : undefined}
-            style={[
-              styles.input,
-              {
-                color: colors.text,
-                fontFamily: fontFamily.sans,
-              },
-              Platform.OS === 'web' ? styles.webInput : null,
-              style,
-            ]}
-          />
-          {rightIcon ? <View style={styles.iconRight}>{rightIcon}</View> : null}
-        </AnimatedView>
+        />
+        {rightIcon ? <View style={styles.iconRight}>{rightIcon}</View> : null}
       </AnimatedView>
       {error ? (
         <Text style={[typePresets.bodySm, { color: colors.danger, marginTop: spacing.xs }]}>
@@ -124,31 +117,36 @@ const styles = StyleSheet.create({
   wrapper: {
     marginBottom: spacing.base,
   },
-  focusFrame: {
-    borderRadius: radius.lg,
-    borderCurve: 'continuous',
-    borderWidth: 2,
-    padding: 2,
-  },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: radius.md,
-    borderWidth: 1.5,
-    minHeight: 48,
-    paddingHorizontal: spacing.md,
+    borderRadius: radius.lg,
+    borderCurve: 'continuous',
+    borderWidth: 1,
+    minHeight: 54,
+    paddingHorizontal: spacing.md + 1,
   },
   input: {
     flex: 1,
     fontSize: 15,
     lineHeight: 20,
-    paddingVertical: spacing.md,
+    paddingVertical: spacing.md + 1,
+  },
+  multilineInput: {
+    minHeight: 92,
+    textAlignVertical: 'top',
   },
   iconLeft: {
     marginRight: spacing.sm,
   },
   iconRight: {
     marginLeft: spacing.sm,
+  },
+  focusedField: {
+    shadowOpacity: 0.12,
+    shadowOffset: { width: 0, height: 0 },
+    shadowRadius: 12,
+    elevation: 2,
   },
   webInput: {
     outlineWidth: 0,
