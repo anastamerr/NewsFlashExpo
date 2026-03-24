@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
-import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Plus } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -9,13 +9,22 @@ import { Chip } from '@/components/ui/Chip';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { BottomSheetModal } from '@/components/ui/BottomSheetModal';
+import { SegmentedControl } from '@/components/ui/SegmentedControl';
+import { FilterTrigger } from '@/components/ui/FilterTrigger';
+import { OptionPickerSheet, type OptionPickerItem } from '@/components/ui/OptionPickerSheet';
 import { useTheme, spacing } from '@/theme';
 import { typePresets } from '@/theme/typography';
 import { MOCK_ALERTS, MOCK_ARTICLES } from '@/constants/mockData';
 import { useRefreshControl } from '@/hooks/useRefreshControl';
 import { useScrollDirection } from '@/hooks/useScrollDirection';
 import { SkeletonAlert } from '@/components/ui/Skeleton';
-import { getStoredAlerts, saveStoredAlerts, type DeliveryChannel, type ManagedAlert, type SeverityFilter } from '@/utils/adminPersistence';
+import {
+  getStoredAlerts,
+  saveStoredAlerts,
+  type DeliveryChannel,
+  type ManagedAlert,
+  type SeverityFilter,
+} from '@/utils/adminPersistence';
 import { successNotification } from '@/utils/haptics';
 import type { AlertPublic } from '@/types/api';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -35,12 +44,20 @@ type AlertDraft = {
 };
 
 const FILTERS: AlertFilter[] = ['All', 'Crisis', 'Active', 'Resolved'];
+const STATUS_SEGMENTS = FILTERS.map((filter) => ({ label: filter, value: filter }));
 const ALERT_TYPE_FILTERS: { value: AlertTypeFilter; label: string }[] = [
   { value: 'all', label: 'All Types' },
   { value: 'crisis', label: 'Crisis' },
   { value: 'macro', label: 'Macro' },
   { value: 'earnings', label: 'Earnings' },
   { value: 'brand_mention', label: 'Brand' },
+];
+const ALERT_TYPE_OPTIONS: OptionPickerItem[] = [
+  { value: 'all', label: 'All Types', description: 'Show every alert rule and trigger.' },
+  { value: 'crisis', label: 'Crisis', description: 'Focus on urgent reputation and incident signals.' },
+  { value: 'macro', label: 'Macro', description: 'Surface rates, policy, and market environment alerts.' },
+  { value: 'earnings', label: 'Earnings', description: 'Track financial events and earnings-linked coverage.' },
+  { value: 'brand_mention', label: 'Brand', description: 'Limit the feed to brand and company mention alerts.' },
 ];
 const ALERT_TYPES: NonNullable<AlertPublic['type']>[] = ['crisis', 'macro', 'earnings', 'brand_mention', 'ratings', 'ceo_change'];
 const DELIVERY_CHANNELS: DeliveryChannel[] = ['push', 'email', 'in-app'];
@@ -71,6 +88,7 @@ export function AlertsScreen({ navigation }: Props) {
   const [activeTypeFilter, setActiveTypeFilter] = useState<AlertTypeFilter>('all');
   const [isLoading, setIsLoading] = useState(true);
   const [sheetVisible, setSheetVisible] = useState(false);
+  const [typeSheetVisible, setTypeSheetVisible] = useState(false);
   const [draft, setDraft] = useState<AlertDraft>(EMPTY_DRAFT);
 
   useEffect(() => {
@@ -125,6 +143,10 @@ export function AlertsScreen({ navigation }: Props) {
       paddingBottom: insets.bottom + 90,
     }),
     [insets.bottom],
+  );
+  const activeTypeLabel = useMemo(
+    () => ALERT_TYPE_FILTERS.find((filter) => filter.value === activeTypeFilter)?.label ?? 'All Types',
+    [activeTypeFilter],
   );
 
   const handleAlertPress = useCallback((alert: AlertPublic) => {
@@ -216,7 +238,7 @@ export function AlertsScreen({ navigation }: Props) {
         <View>
           <Text style={[typePresets.h1, { color: colors.text }]}>Alerts</Text>
           <Text style={[typePresets.bodySm, { color: colors.textTertiary, marginTop: 2 }]}>
-            {activeCount} active{criticalCount > 0 ? ` · ${criticalCount} critical` : ''}
+            {activeCount} active{criticalCount > 0 ? ` | ${criticalCount} critical` : ''}
           </Text>
         </View>
         <Pressable
@@ -233,37 +255,25 @@ export function AlertsScreen({ navigation }: Props) {
         </Pressable>
       </View>
 
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.filterScroll}
-        contentContainerStyle={styles.filterRow}
-      >
-        {FILTERS.map((filter) => (
-          <Chip
-            key={filter}
-            label={filter}
-            selected={activeFilter === filter}
-            onPress={() => setActiveFilter(filter)}
-          />
-        ))}
-      </ScrollView>
-
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.typeScroll}
-        contentContainerStyle={styles.filterRow}
-      >
-        {ALERT_TYPE_FILTERS.map((filter) => (
-          <Chip
-            key={filter.value}
-            label={filter.label}
-            selected={activeTypeFilter === filter.value}
-            onPress={() => setActiveTypeFilter(filter.value)}
-          />
-        ))}
-      </ScrollView>
+      <View style={styles.controls}>
+        <SegmentedControl
+          options={STATUS_SEGMENTS}
+          value={activeFilter}
+          onChange={(value) => setActiveFilter(value as AlertFilter)}
+        />
+        <View style={styles.metaRow}>
+          <View style={styles.metaTrigger}>
+            <FilterTrigger
+              label="Type"
+              value={activeTypeLabel}
+              onPress={() => setTypeSheetVisible(true)}
+            />
+          </View>
+          <Text style={[typePresets.bodySm, { color: colors.textTertiary }]}>
+            {filteredAlerts.length} showing
+          </Text>
+        </View>
+      </View>
 
       {isLoading ? (
         <View style={styles.list}>
@@ -370,6 +380,16 @@ export function AlertsScreen({ navigation }: Props) {
           </View>
         </View>
       </BottomSheetModal>
+
+      <OptionPickerSheet
+        visible={typeSheetVisible}
+        title="Alert Type"
+        description="Narrow the feed without adding another chip row."
+        value={activeTypeFilter}
+        options={ALERT_TYPE_OPTIONS}
+        onClose={() => setTypeSheetVisible(false)}
+        onSelect={(value) => setActiveTypeFilter(value as AlertTypeFilter)}
+      />
     </View>
   );
 }
@@ -396,17 +416,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  filterScroll: {
-    flexGrow: 0,
-  },
-  typeScroll: {
-    flexGrow: 0,
-    marginBottom: spacing.base,
-  },
-  filterRow: {
+  controls: {
     paddingHorizontal: spacing.base,
+    paddingBottom: spacing.base,
     gap: spacing.sm,
+  },
+  metaRow: {
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+  },
+  metaTrigger: {
+    flex: 1,
   },
   list: {
     paddingHorizontal: spacing.base,

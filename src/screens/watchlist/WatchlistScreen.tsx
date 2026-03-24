@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useMemo } from 'react';
-import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Plus, Heart } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -11,6 +11,8 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { SearchBar } from '@/components/ui/SearchBar';
 import { BottomSheetModal } from '@/components/ui/BottomSheetModal';
+import { FilterTrigger } from '@/components/ui/FilterTrigger';
+import { OptionPickerSheet, type OptionPickerItem } from '@/components/ui/OptionPickerSheet';
 import { useTheme, spacing, radius } from '@/theme';
 import { typePresets } from '@/theme/typography';
 import { MOCK_ARTICLES, MOCK_WATCHLIST } from '@/constants/mockData';
@@ -28,6 +30,13 @@ import type { TimeWindow } from '@/utils/timeWindow';
 type Nav = NativeStackNavigationProp<WatchlistStackParamList, 'Watchlist'>;
 
 const FILTER_TYPES = ['All', 'Companies', 'Sectors', 'Markets', 'People'] as const;
+const FILTER_OPTIONS: OptionPickerItem[] = [
+  { value: 'All', label: 'All', description: 'Show every tracked entity in one feed.' },
+  { value: 'Companies', label: 'Companies', description: 'Focus on named companies and listed names.' },
+  { value: 'Sectors', label: 'Sectors', description: 'Review sector-level watch targets only.' },
+  { value: 'Markets', label: 'Markets', description: 'Limit the workspace to market and macro entities.' },
+  { value: 'People', label: 'People', description: 'Track individuals and executive names.' },
+];
 const TYPE_MAP: Record<string, WatchlistItem['type'] | undefined> = {
   All: undefined,
   Companies: 'company',
@@ -42,6 +51,12 @@ const FILTER_LABEL_BY_TYPE: Record<WatchlistItem['type'], (typeof FILTER_TYPES)[
   people: 'People',
 };
 const REPORT_WINDOWS: TimeWindow[] = ['24H', '7D', '30D', '90D'];
+const WINDOW_OPTIONS: OptionPickerItem[] = [
+  { value: '24H', label: '24H', description: 'Use the last day of activity for report actions.' },
+  { value: '7D', label: '7D', description: 'Balance recent movement with weekly signal context.' },
+  { value: '30D', label: '30D', description: 'Expand the view to a monthly monitoring window.' },
+  { value: '90D', label: '90D', description: 'Use the broadest period for synthesis and trend review.' },
+];
 
 export function WatchlistScreen() {
   const { colors } = useTheme();
@@ -54,6 +69,7 @@ export function WatchlistScreen() {
   const [reportWindow, setReportWindow] = useState<TimeWindow>('7D');
   const [focusedItemId, setFocusedItemId] = useState<string | null>(MOCK_WATCHLIST[0]?.id ?? null);
   const [isAddSheetOpen, setIsAddSheetOpen] = useState(false);
+  const [activePicker, setActivePicker] = useState<'filter' | 'window' | null>(null);
   const [draftType, setDraftType] = useState<WatchlistItem['type']>('company');
   const [draftName, setDraftName] = useState('');
   const [draftSymbol, setDraftSymbol] = useState('');
@@ -209,41 +225,25 @@ export function WatchlistScreen() {
         <SearchBar value={search} onChangeText={setSearch} placeholder="Search watchlist..." />
       </View>
 
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.filterScroll}
-        contentContainerStyle={styles.filterRow}
-      >
-        {FILTER_TYPES.map((type) => (
-          <Chip
-            key={type}
-            label={type}
-            selected={activeFilter === type}
-            onPress={() => setActiveFilter(type)}
-          />
-        ))}
-      </ScrollView>
-
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.windowScroll}
-        contentContainerStyle={styles.filterRow}
-      >
-        {REPORT_WINDOWS.map((window) => (
-          <Chip
-            key={window}
-            label={window}
-            selected={reportWindow === window}
-            onPress={() => setReportWindow(window)}
-          />
-        ))}
-      </ScrollView>
-
-      <View style={styles.summaryRow}>
+      <View style={styles.controls}>
+        <View style={styles.controlRow}>
+          <View style={styles.controlItem}>
+            <FilterTrigger
+              label="Scope"
+              value={activeFilter}
+              onPress={() => setActivePicker('filter')}
+            />
+          </View>
+          <View style={styles.controlItem}>
+            <FilterTrigger
+              label="Window"
+              value={reportWindow}
+              onPress={() => setActivePicker('window')}
+            />
+          </View>
+        </View>
         <Text style={[typePresets.bodySm, { color: colors.textTertiary }]}>
-          {filteredItems.length} tracked items · {trackedArticleVolume} mentions in {reportWindow}
+          {filteredItems.length} tracked items | {trackedArticleVolume} mentions in {reportWindow}
         </Text>
       </View>
 
@@ -388,6 +388,26 @@ export function WatchlistScreen() {
           />
         ) : null}
       </BottomSheetModal>
+
+      <OptionPickerSheet
+        visible={activePicker === 'filter'}
+        title="Watchlist Scope"
+        description="Choose which tracked entity type stays in focus."
+        value={activeFilter}
+        options={FILTER_OPTIONS}
+        onClose={() => setActivePicker(null)}
+        onSelect={(value) => setActiveFilter(value as (typeof FILTER_TYPES)[number])}
+      />
+
+      <OptionPickerSheet
+        visible={activePicker === 'window'}
+        title="Report Window"
+        description="Set the time range used for synthesis and report actions."
+        value={reportWindow}
+        options={WINDOW_OPTIONS}
+        onClose={() => setActivePicker(null)}
+        onSelect={(value) => setReportWindow(value as TimeWindow)}
+      />
     </View>
   );
 }
@@ -416,21 +436,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.base,
     marginBottom: spacing.sm,
   },
-  filterScroll: {
-    flexGrow: 0,
-  },
-  windowScroll: {
-    flexGrow: 0,
-    marginBottom: spacing.xs,
-  },
-  filterRow: {
-    paddingHorizontal: spacing.base,
-    gap: spacing.sm,
-    alignItems: 'center',
-  },
-  summaryRow: {
+  controls: {
     paddingHorizontal: spacing.base,
     marginBottom: spacing.sm,
+    gap: spacing.sm,
+  },
+  controlRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  controlItem: {
+    flex: 1,
   },
   focusStrip: {
     marginHorizontal: spacing.base,

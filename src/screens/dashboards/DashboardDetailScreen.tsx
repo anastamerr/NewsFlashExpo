@@ -21,6 +21,31 @@ import type { DashboardsStackParamList } from '@/types/navigation';
 
 type Props = NativeStackScreenProps<DashboardsStackParamList, 'DashboardDetail'>;
 
+class DashboardDetailRenderBoundary extends React.PureComponent<
+  { children: React.ReactNode; fallback: React.ReactNode; boundaryKey: string },
+  { hasError: boolean }
+> {
+  state = { hasError: false };
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidUpdate(prevProps: Readonly<{ boundaryKey: string }>) {
+    if (prevProps.boundaryKey !== this.props.boundaryKey && this.state.hasError) {
+      this.setState({ hasError: false });
+    }
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return this.props.fallback;
+    }
+
+    return this.props.children;
+  }
+}
+
 const SENTIMENT_TREND = [
   { x: 0, y: 2.1 },
   { x: 1, y: 1.8 },
@@ -67,6 +92,7 @@ export function DashboardDetailScreen({ route, navigation }: Props) {
   const title = route.params.title;
   const dashboardId = route.params.dashboardId;
   const [period, setPeriod] = useState('7d');
+  const boundaryKey = `${dashboardId}:${period}`;
   const activeCrisis = useMemo(() => getActiveCrisis(MOCK_ALERTS), []);
   const topTrigger = useMemo(() => getTopTrigger(MOCK_ALERTS), []);
   const handleOpenCrisis = useCallback(() => {
@@ -87,6 +113,14 @@ export function DashboardDetailScreen({ route, navigation }: Props) {
     });
   }, [navigation, topTrigger]);
   const sectionTitle = dashboardId === 'crisis' ? 'Crisis Launches' : 'Related Intelligence';
+  const detailFallback = (
+    <Card>
+      <Text style={[typePresets.h3, { color: colors.text }]}>Analytics detail unavailable</Text>
+      <Text style={[typePresets.bodySm, { color: colors.textSecondary, marginTop: spacing.xs }]}>
+        This dashboard module failed to render. Change the period or reopen analytics to retry.
+      </Text>
+    </Card>
+  );
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -173,86 +207,98 @@ export function DashboardDetailScreen({ route, navigation }: Props) {
 
         <Animated.View entering={FadeInDown.delay(100).springify()}>
           <Section title="Sentiment Breakdown">
-            <SentimentGauge
-              positive={MOCK_STATS.sentimentBreakdown.positive}
-              neutral={MOCK_STATS.sentimentBreakdown.neutral}
-              negative={MOCK_STATS.sentimentBreakdown.negative}
-              height={10}
-            />
+            <DashboardDetailRenderBoundary boundaryKey={`${boundaryKey}:gauge`} fallback={detailFallback}>
+              <SentimentGauge
+                positive={MOCK_STATS.sentimentBreakdown.positive}
+                neutral={MOCK_STATS.sentimentBreakdown.neutral}
+                negative={MOCK_STATS.sentimentBreakdown.negative}
+                height={10}
+              />
+            </DashboardDetailRenderBoundary>
           </Section>
         </Animated.View>
 
         <Animated.View entering={FadeInDown.delay(200).springify()}>
           <Section title="Sentiment Trend">
-            <Card>
-              <LineChart
-                series={[
-                  { data: SENTIMENT_TREND, color: colors.sentimentPositive, label: 'Positive' },
-                  { data: NEGATIVE_TREND, color: colors.sentimentNegative, label: 'Negative' },
-                ]}
-                height={220}
-                xLabels={DAYS}
-              />
-            </Card>
+            <DashboardDetailRenderBoundary boundaryKey={`${boundaryKey}:line`} fallback={detailFallback}>
+              <Card>
+                <LineChart
+                  series={[
+                    { data: SENTIMENT_TREND, color: colors.sentimentPositive, label: 'Positive' },
+                    { data: NEGATIVE_TREND, color: colors.sentimentNegative, label: 'Negative' },
+                  ]}
+                  height={220}
+                  xLabels={DAYS}
+                />
+              </Card>
+            </DashboardDetailRenderBoundary>
           </Section>
         </Animated.View>
 
         <Animated.View entering={FadeInDown.delay(300).springify()}>
           <Section title="Article Volume">
-            <Card>
-              <BarChart
-                data={VOLUME_DATA}
-                height={200}
-                color={colors.primary}
-                xLabels={DAYS}
-              />
-            </Card>
+            <DashboardDetailRenderBoundary boundaryKey={`${boundaryKey}:bar`} fallback={detailFallback}>
+              <Card>
+                <BarChart
+                  data={VOLUME_DATA}
+                  height={200}
+                  color={colors.primary}
+                  xLabels={DAYS}
+                />
+              </Card>
+            </DashboardDetailRenderBoundary>
           </Section>
         </Animated.View>
 
         <Animated.View entering={FadeInDown.delay(400).springify()}>
           <Section title="Content by Category">
-            <Card>
-              <PieChart
-                data={CATEGORY_DATA}
-                size={200}
-                innerRadius={65}
-                centerLabel="TOTAL"
-                centerValue={CATEGORY_DATA.reduce((s, d) => s + d.value, 0).toString()}
-              />
-            </Card>
+            <DashboardDetailRenderBoundary boundaryKey={`${boundaryKey}:pie`} fallback={detailFallback}>
+              <Card>
+                <PieChart
+                  data={CATEGORY_DATA}
+                  size={200}
+                  innerRadius={65}
+                  centerLabel="TOTAL"
+                  centerValue={CATEGORY_DATA.reduce((s, d) => s + d.value, 0).toString()}
+                />
+              </Card>
+            </DashboardDetailRenderBoundary>
           </Section>
         </Animated.View>
 
         <Animated.View entering={FadeInDown.delay(500).springify()}>
           <Section title="Trending Topics">
-            {MOCK_STATS.trendingTopics.map((topic, i) => (
-              <View key={topic.topic} style={styles.topicRow}>
-                <Text style={[typePresets.monoSm, { color: colors.textTertiary, width: 20 }]}>
-                  {i + 1}
-                </Text>
-                <Text style={[typePresets.body, { color: colors.text, flex: 1 }]}>
-                  {topic.topic}
-                </Text>
-                <View style={[styles.topicBarWrapper, { backgroundColor: colors.muted }]}>
-                  <View
-                    style={[
-                      styles.topicBar,
-                      {
-                        width: `${(topic.count / MOCK_STATS.trendingTopics[0].count) * 100}%`,
-                        backgroundColor:
-                          topic.trend === 'up' ? colors.sentimentPositive
-                          : topic.trend === 'down' ? colors.sentimentNegative
-                          : colors.primary,
-                      },
-                    ]}
-                  />
-                </View>
-                <Text style={[typePresets.monoSm, { color: colors.textSecondary, width: 36, textAlign: 'right' }]}>
-                  {topic.count}
-                </Text>
-              </View>
-            ))}
+            <DashboardDetailRenderBoundary boundaryKey={`${boundaryKey}:topics`} fallback={detailFallback}>
+              <>
+                {MOCK_STATS.trendingTopics.map((topic, i) => (
+                  <View key={topic.topic} style={styles.topicRow}>
+                    <Text style={[typePresets.monoSm, { color: colors.textTertiary, width: 20 }]}>
+                      {i + 1}
+                    </Text>
+                    <Text style={[typePresets.body, { color: colors.text, flex: 1 }]}>
+                      {topic.topic}
+                    </Text>
+                    <View style={[styles.topicBarWrapper, { backgroundColor: colors.muted }]}>
+                      <View
+                        style={[
+                          styles.topicBar,
+                          {
+                            width: `${(topic.count / MOCK_STATS.trendingTopics[0].count) * 100}%`,
+                            backgroundColor:
+                              topic.trend === 'up' ? colors.sentimentPositive
+                              : topic.trend === 'down' ? colors.sentimentNegative
+                              : colors.primary,
+                          },
+                        ]}
+                      />
+                    </View>
+                    <Text style={[typePresets.monoSm, { color: colors.textSecondary, width: 36, textAlign: 'right' }]}>
+                      {topic.count}
+                    </Text>
+                  </View>
+                ))}
+              </>
+            </DashboardDetailRenderBoundary>
           </Section>
         </Animated.View>
       </ScrollView>
