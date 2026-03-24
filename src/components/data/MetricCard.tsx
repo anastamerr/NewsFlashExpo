@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, type StyleProp, type ViewStyle } from 'react-native';
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react-native';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { useTheme, spacing } from '@/theme';
@@ -12,6 +12,7 @@ interface Props {
   prefix?: string;
   trend?: number;
   format?: (n: number) => string;
+  style?: StyleProp<ViewStyle>;
 }
 
 export function MetricCard({
@@ -21,6 +22,7 @@ export function MetricCard({
   prefix = '',
   trend,
   format: formatFn,
+  style,
 }: Props) {
   const { colors } = useTheme();
 
@@ -30,7 +32,7 @@ export function MetricCard({
   const trendColor = trend && trend > 0 ? colors.sentimentPositive : trend && trend < 0 ? colors.sentimentNegative : colors.textTertiary;
 
   return (
-    <GlassCard style={styles.container}>
+    <GlassCard style={[styles.container, style]}>
       <Text style={[typePresets.labelXs, { color: colors.textSecondary }]}>
         {label}
       </Text>

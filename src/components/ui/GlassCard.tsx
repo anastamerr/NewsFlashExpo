@@ -1,11 +1,11 @@
 import React from 'react';
-import { View, StyleSheet, Platform, type ViewStyle } from 'react-native';
+import { View, StyleSheet, Platform, type StyleProp, type ViewStyle } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { useTheme, spacing, radius } from '@/theme';
 
 interface Props {
   children: React.ReactNode;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
   intensity?: number;
 }
 

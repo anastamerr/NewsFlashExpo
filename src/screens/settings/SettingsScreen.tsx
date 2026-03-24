@@ -1,6 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
+import Animated, {
+  FadeInDown,
+  Extrapolation,
+  interpolate,
+  useAnimatedScrollHandler,
+  useAnimatedStyle,
+  useSharedValue,
+} from 'react-native-reanimated';
 import {
   X, Bell, Radio, Users, Info, LogOut,
   ChevronRight, Sun, Moon, Monitor, Shield, UserRound,
@@ -104,6 +111,7 @@ export function SettingsScreen({ navigation }: Props) {
   const [accountSheetVisible, setAccountSheetVisible] = useState(false);
   const [screenError, setScreenError] = useState('');
   const [screenNotice, setScreenNotice] = useState('');
+  const scrollY = useSharedValue(0);
   const [accountDraft, setAccountDraft] = useState<AccountDraft>({
     profileName: defaultSettings.profileName,
     profileEmail: defaultSettings.profileEmail,
@@ -221,10 +229,26 @@ export function SettingsScreen({ navigation }: Props) {
     settings.severityFilters.length > 0 ? settings.severityFilters.join(', ') : 'All severities muted'
   ), [settings.severityFilters]);
 
+  const headerTitleStyle = useAnimatedStyle(() => {
+    const opacity = interpolate(scrollY.value, [24, 96], [0, 1], Extrapolation.CLAMP);
+    const translateY = interpolate(scrollY.value, [24, 96], [10, 0], Extrapolation.CLAMP);
+
+    return {
+      opacity,
+      transform: [{ translateY }],
+    };
+  });
+
+  const scrollHandler = useAnimatedScrollHandler((event) => {
+    scrollY.value = event.contentOffset.y;
+  });
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]}>
-        <Text style={[typePresets.h1, { color: colors.text }]}>Settings</Text>
+        <Animated.Text style={[typePresets.h3, styles.headerTitle, { color: colors.text }, headerTitleStyle]}>
+          Settings
+        </Animated.Text>
         <Pressable
           onPress={() => navigation.goBack()}
           style={({ pressed }) => [styles.closeBtn, pressed && styles.pressed]}
@@ -235,11 +259,17 @@ export function SettingsScreen({ navigation }: Props) {
         </Pressable>
       </View>
 
-      <ScrollView
+      <Animated.ScrollView
         contentInsetAdjustmentBehavior="automatic"
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + spacing.xxl }]}
+        onScroll={scrollHandler}
+        scrollEventThrottle={16}
       >
+        <View style={styles.heroBlock}>
+          <Text style={[typePresets.h1, { color: colors.text }]}>Settings</Text>
+        </View>
+
         {isHydrating ? (
           <StateBlock
             title="Loading settings"
@@ -422,7 +452,7 @@ export function SettingsScreen({ navigation }: Props) {
         </Animated.View>
           </>
         ) : null}
-      </ScrollView>
+      </Animated.ScrollView>
 
       <BottomSheetModal
         visible={accountSheetVisible}
@@ -486,6 +516,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.base,
     paddingBottom: spacing.sm,
   },
+  headerTitle: {
+    flex: 1,
+  },
   closeBtn: {
     width: 40,
     height: 40,
@@ -494,6 +527,9 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: spacing.base,
+  },
+  heroBlock: {
+    paddingTop: spacing.sm,
   },
   sectionLabel: {
     marginTop: spacing.xl,

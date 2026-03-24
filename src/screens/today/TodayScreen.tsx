@@ -1,19 +1,18 @@
 import React, { useCallback, useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, Pressable } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, Pressable, type DimensionValue } from 'react-native';
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
-import { Settings, AlertTriangle } from 'lucide-react-native';
+import { Settings, AlertTriangle, TrendingUp, TrendingDown, Minus } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import { ScreenContainer } from '@/components/layout/ScreenContainer';
 import { Section } from '@/components/layout/Section';
 import { MetricCard } from '@/components/data/MetricCard';
 import { ArticleCard } from '@/components/lists/ArticleCard';
-import { Chip } from '@/components/ui/Chip';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { Skeleton, SkeletonCard, SkeletonMetric } from '@/components/ui/Skeleton';
-import { Badge } from '@/components/ui/Badge';
-import { useTheme, spacing, palette } from '@/theme';
-import { typePresets, fontFamily } from '@/theme/typography';
+import { useTheme, spacing, radius } from '@/theme';
+import { typePresets } from '@/theme/typography';
 import { useAuthStore } from '@/store/authStore';
+import { useChatStore } from '@/store/chatStore';
 import { useRefreshControl } from '@/hooks/useRefreshControl';
 import { SparkLine } from '@/components/charts/SparkLine';
 import { MOCK_ARTICLES, MOCK_STATS, MOCK_ALERTS, MOCK_WATCHLIST } from '@/constants/mockData';
@@ -24,12 +23,24 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { TodayStackParamList } from '@/types/navigation';
 
 type Nav = NativeStackNavigationProp<TodayStackParamList, 'Today'>;
+type TopicTrend = (typeof MOCK_STATS.trendingTopics)[number]['trend'];
+
+const TOPIC_TREND_META: Record<TopicTrend, { label: string; Icon: typeof TrendingUp }> = {
+  up: { label: 'Rising fast', Icon: TrendingUp },
+  down: { label: 'Cooling off', Icon: TrendingDown },
+  stable: { label: 'Holding', Icon: Minus },
+};
+
+function buildTopicPrompt(topic: string) {
+  return `Give me a concise brief on why "${topic}" is trending today, the main drivers behind it, and what to watch next.`;
+}
 
 export function TodayScreen() {
   const { colors } = useTheme();
   const navigation = useNavigation<Nav>();
   const rootNav = useNavigation<any>();
   const user = useAuthStore((s) => s.user);
+  const openChat = useChatStore((s) => s.openChat);
   const [isLoading, setIsLoading] = useState(true);
 
   React.useEffect(() => {
@@ -68,6 +79,33 @@ export function TodayScreen() {
     });
   }, [criticalAlerts, rootNav]);
 
+  const handleTopicPress = useCallback((topic: string) => {
+    openChat(buildTopicPrompt(topic));
+  }, [openChat]);
+
+  const trendingTopics = React.useMemo(() => {
+    const totalMentions = MOCK_STATS.trendingTopics.reduce((sum, topic) => sum + topic.count, 0);
+    const maxCount = Math.max(...MOCK_STATS.trendingTopics.map((topic) => topic.count), 1);
+
+    return MOCK_STATS.trendingTopics.map((topic, index) => ({
+      ...topic,
+      rank: index + 1,
+      share: Math.round((topic.count / totalMentions) * 100),
+      barWidth: `${Math.max(14, Math.round((topic.count / maxCount) * 100))}%` as DimensionValue,
+    }));
+  }, []);
+
+  const leadTopic = trendingTopics[0];
+  const supportingTopics = trendingTopics.slice(1);
+  const leadTopicMeta = leadTopic ? TOPIC_TREND_META[leadTopic.trend] : null;
+  const leadTopicTrendColor = !leadTopic
+    ? colors.textSecondary
+    : leadTopic.trend === 'up'
+      ? colors.sentimentPositive
+      : leadTopic.trend === 'down'
+        ? colors.sentimentNegative
+        : colors.textSecondary;
+
   const greeting = () => {
     const hour = new Date().getHours();
     if (hour < 12) return 'Good morning';
@@ -87,11 +125,20 @@ export function TodayScreen() {
         </View>
         <View style={{ marginTop: spacing.xl }}>
           <Skeleton width={100} height={16} />
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[styles.metricsRow, { marginTop: spacing.md }]}>
-            <SkeletonMetric />
-            <SkeletonMetric />
-            <SkeletonMetric />
-          </ScrollView>
+          <View style={[styles.metricsGrid, { marginTop: spacing.md }]}>
+            <View style={styles.metricGridItem}>
+              <SkeletonMetric />
+            </View>
+            <View style={styles.metricGridItem}>
+              <SkeletonMetric />
+            </View>
+            <View style={styles.metricGridItem}>
+              <SkeletonMetric />
+            </View>
+            <View style={styles.metricGridItem}>
+              <SkeletonMetric />
+            </View>
+          </View>
         </View>
         <View style={{ marginTop: spacing.xl }}>
           <Skeleton width={90} height={16} />
@@ -152,12 +199,36 @@ export function TodayScreen() {
       {/* Key Metrics */}
       <Animated.View entering={FadeInDown.delay(200).springify()}>
         <Section title="Key Metrics">
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.metricsRow}>
-            <MetricCard label="ARTICLES TODAY" value={MOCK_STATS.totalArticles} format={formatNumber} trend={12.5} />
-            <MetricCard label="AVG SENTIMENT" value={MOCK_STATS.avgSentiment} suffix="" format={(n) => n > 0 ? `+${n.toFixed(1)}` : n.toFixed(1)} trend={-3.2} />
-            <MetricCard label="POSITIVE" value={MOCK_STATS.sentimentBreakdown.positive} suffix="%" trend={5.1} />
-            <MetricCard label="SOURCES ACTIVE" value={6} trend={0} />
-          </ScrollView>
+          <View style={styles.metricsGrid}>
+            <MetricCard
+              label="ARTICLES TODAY"
+              value={MOCK_STATS.totalArticles}
+              format={formatNumber}
+              trend={12.5}
+              style={styles.metricGridItem}
+            />
+            <MetricCard
+              label="AVG SENTIMENT"
+              value={MOCK_STATS.avgSentiment}
+              suffix=""
+              format={(n) => n > 0 ? `+${n.toFixed(1)}` : n.toFixed(1)}
+              trend={-3.2}
+              style={styles.metricGridItem}
+            />
+            <MetricCard
+              label="POSITIVE"
+              value={MOCK_STATS.sentimentBreakdown.positive}
+              suffix="%"
+              trend={5.1}
+              style={styles.metricGridItem}
+            />
+            <MetricCard
+              label="SOURCES ACTIVE"
+              value={6}
+              trend={0}
+              style={styles.metricGridItem}
+            />
+          </View>
         </Section>
       </Animated.View>
 
@@ -193,15 +264,126 @@ export function TodayScreen() {
       {/* Trending Topics */}
       <Animated.View entering={FadeInDown.delay(600).springify()}>
         <Section title="Trending Topics">
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
-            {MOCK_STATS.trendingTopics.map((topic) => (
-              <Chip
-                key={topic.topic}
-                label={topic.topic}
-                count={topic.count}
-              />
-            ))}
-          </ScrollView>
+          <Text style={[typePresets.bodySm, styles.topicIntro, { color: colors.textSecondary }]}>
+            Tap any topic to open a focused brief in chat.
+          </Text>
+
+          {leadTopic ? (
+            <Pressable
+              onPress={() => handleTopicPress(leadTopic.topic)}
+              accessibilityRole="button"
+              accessibilityLabel={`Open chat brief for ${leadTopic.topic}`}
+              style={({ pressed }) => [
+                styles.topicLead,
+                { borderColor: colors.borderSubtle, backgroundColor: colors.surface },
+                pressed && styles.pressed,
+              ]}
+            >
+              <View style={styles.topicLeadTopRow}>
+                <Text style={[typePresets.labelXs, { color: colors.primary }]}>Lead Signal</Text>
+                <Text style={[typePresets.monoSm, { color: colors.textTertiary }]}>
+                  {leadTopic.share}% share
+                </Text>
+              </View>
+
+              <Text style={[typePresets.displaySm, styles.topicLeadTitle, { color: colors.text }]}>
+                {leadTopic.topic}
+              </Text>
+
+              <View style={styles.topicLeadMetaRow}>
+                <View style={styles.topicLeadMetaBlock}>
+                  <Text style={[typePresets.labelXs, { color: colors.textTertiary }]}>Coverage</Text>
+                  <Text style={[typePresets.monoLg, { color: colors.text }]}>
+                    {formatNumber(leadTopic.count)}
+                  </Text>
+                </View>
+                <View style={styles.topicLeadMetaBlock}>
+                  <Text style={[typePresets.labelXs, { color: colors.textTertiary }]}>Momentum</Text>
+                  <View style={styles.topicTrendBadge}>
+                    {leadTopicMeta ? (
+                      <leadTopicMeta.Icon
+                        size={14}
+                        color={leadTopicTrendColor}
+                        strokeWidth={2.2}
+                      />
+                    ) : null}
+                    <Text style={[typePresets.label, { color: leadTopicTrendColor }]}>
+                      {leadTopicMeta?.label ?? 'Holding'}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+
+              <View style={[styles.topicTrack, { backgroundColor: colors.muted }]}>
+                <View
+                  style={[
+                    styles.topicTrackFill,
+                    { width: leadTopic.barWidth, backgroundColor: leadTopicTrendColor },
+                  ]}
+                />
+              </View>
+            </Pressable>
+          ) : null}
+
+          <View style={[styles.topicList, { borderTopColor: colors.borderSubtle }]}>
+            {supportingTopics.map((topic, index) => {
+              const trendMeta = TOPIC_TREND_META[topic.trend];
+              const trendColor =
+                topic.trend === 'up'
+                  ? colors.sentimentPositive
+                  : topic.trend === 'down'
+                    ? colors.sentimentNegative
+                    : colors.textSecondary;
+
+              return (
+                <Animated.View key={topic.topic} entering={FadeInDown.delay(650 + index * 50).springify()}>
+                  <Pressable
+                    onPress={() => handleTopicPress(topic.topic)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Open chat brief for ${topic.topic}`}
+                    style={({ pressed }) => [
+                      styles.topicRow,
+                      { borderBottomColor: colors.borderSubtle },
+                      pressed && styles.pressed,
+                    ]}
+                  >
+                    <View style={styles.topicRowHeader}>
+                      <Text style={[typePresets.monoSm, styles.topicRank, { color: colors.textTertiary }]}>
+                        {String(topic.rank).padStart(2, '0')}
+                      </Text>
+                      <Text style={[typePresets.h3, styles.topicName, { color: colors.text }]}>
+                        {topic.topic}
+                      </Text>
+                      <View style={styles.topicTrendBadge}>
+                        <trendMeta.Icon size={14} color={trendColor} strokeWidth={2.2} />
+                        <Text style={[typePresets.labelSm, { color: trendColor }]}>
+                          {trendMeta.label}
+                        </Text>
+                      </View>
+                    </View>
+
+                    <View style={styles.topicRowMeta}>
+                      <Text style={[typePresets.bodySm, { color: colors.textSecondary }]}>
+                        {formatNumber(topic.count)} mentions
+                      </Text>
+                      <Text style={[typePresets.bodySm, { color: colors.textTertiary }]}>
+                        {topic.share}% of pulse
+                      </Text>
+                    </View>
+
+                    <View style={[styles.topicTrack, styles.topicTrackCompact, { backgroundColor: colors.muted }]}>
+                      <View
+                        style={[
+                          styles.topicTrackFill,
+                          { width: topic.barWidth, backgroundColor: trendColor },
+                        ]}
+                      />
+                    </View>
+                  </Pressable>
+                </Animated.View>
+              );
+            })}
+          </View>
         </Section>
       </Animated.View>
 
@@ -272,8 +454,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.sm,
   },
-  metricsRow: {
-    paddingRight: spacing.base,
+  metricsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+  },
+  metricGridItem: {
+    width: '48%',
+    marginRight: 0,
+    marginBottom: 0,
   },
   sentimentBar: {
     flexDirection: 'row',
@@ -291,8 +481,74 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginTop: spacing.xs,
   },
-  chipRow: {
-    gap: spacing.sm,
+  topicIntro: {
+    marginBottom: spacing.md,
+  },
+  topicLead: {
+    borderWidth: 1,
+    borderRadius: radius.lg,
+    borderCurve: 'continuous',
+    padding: spacing.base,
+  },
+  topicLeadTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  topicLeadTitle: {
+    marginTop: spacing.sm,
+  },
+  topicLeadMetaRow: {
+    flexDirection: 'row',
+    gap: spacing.xl,
+    marginTop: spacing.lg,
+  },
+  topicLeadMetaBlock: {
+    flex: 1,
+  },
+  topicTrendBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginTop: spacing.xs,
+  },
+  topicList: {
+    marginTop: spacing.lg,
+    borderTopWidth: 1,
+  },
+  topicRow: {
+    paddingVertical: spacing.base,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  topicRowHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  topicRank: {
+    width: 28,
+  },
+  topicName: {
+    flex: 1,
+    paddingRight: spacing.md,
+  },
+  topicRowMeta: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: spacing.xs,
+    marginBottom: spacing.sm,
+    paddingLeft: 28,
+  },
+  topicTrack: {
+    height: 6,
+    borderRadius: radius.full,
+    overflow: 'hidden',
+  },
+  topicTrackCompact: {
+    marginLeft: 28,
+  },
+  topicTrackFill: {
+    height: '100%',
+    borderRadius: radius.full,
   },
   watchlistItem: {
     flexDirection: 'row',

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Pressable, StyleSheet } from 'react-native';
+import { View, Pressable, StyleSheet, Modal } from 'react-native';
 import {
   NavigationContainer,
   DefaultTheme,
@@ -156,13 +156,17 @@ export function NavigationRoot() {
             <ChatFab onPress={openChat} />
           )}
 
-          {/* Chat Overlay */}
-          {chatVisible && (
-            <View style={StyleSheet.absoluteFill}>
-              <ChatScreen visible={chatVisible} onClose={closeChat} />
-            </View>
-          )}
         </NavigationContainer>
+
+        <Modal
+          visible={chatVisible}
+          animationType="slide"
+          presentationStyle="fullScreen"
+          statusBarTranslucent
+          onRequestClose={closeChat}
+        >
+          <ChatScreen visible={chatVisible} onClose={closeChat} />
+        </Modal>
       </View>
     </ScrollDirectionProvider>
   );
