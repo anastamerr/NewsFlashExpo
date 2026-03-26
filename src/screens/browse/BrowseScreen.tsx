@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback } from 'react';
-import { View, Text, StyleSheet, LayoutAnimation, UIManager, Platform, Pressable, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, LayoutAnimation, UIManager, Platform, Pressable } from 'react-native';
 import Animated, {
   Extrapolation,
   interpolate,
@@ -162,6 +162,7 @@ export function BrowseScreen() {
 
     return filters;
   }, [searchType, selectedSentiment, selectedSource, selectedTag, timeWindow]);
+  const activeRefineCount = activeFilters.length + (viewMode === 'compact' ? 1 : 0);
   const listContentContainerStyle = useMemo(
     () => ({
       paddingHorizontal: spacing.base,
@@ -186,6 +187,7 @@ export function BrowseScreen() {
     setSelectedTag('All Tags');
     setTimeWindow(null);
     setSelectedSource('All');
+    setViewMode('expanded');
   }, []);
 
   const bookmarkAction = useBookmarkAction(() => {});
@@ -238,32 +240,11 @@ export function BrowseScreen() {
   ), [viewMode, handleArticlePress, handleArticleLongPress, bookmarkAction, shareAction]);
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header */}
       <View style={styles.header} onLayout={(event) => setHeaderHeight(event.nativeEvent.layout.height)}>
         <Text style={[typePresets.h1, { color: colors.text }]}>Browse</Text>
-        <View style={styles.viewToggle}>
-          <Pressable
-            onPress={() => switchViewMode('expanded')}
-            style={({ pressed }) => [
-              styles.toggleBtn,
-              viewMode === 'expanded' && { backgroundColor: colors.primary + '20' },
-              pressed && styles.pressed,
-            ]}
-          >
-            <LayoutGrid size={18} color={viewMode === 'expanded' ? colors.primary : colors.textTertiary} strokeWidth={2} />
-          </Pressable>
-          <Pressable
-            onPress={() => switchViewMode('compact')}
-            style={({ pressed }) => [
-              styles.toggleBtn,
-              viewMode === 'compact' && { backgroundColor: colors.primary + '20' },
-              pressed && styles.pressed,
-            ]}
-          >
-            <List size={18} color={viewMode === 'compact' ? colors.primary : colors.textTertiary} strokeWidth={2} />
-          </Pressable>
-        </View>
+        <Text style={[typePresets.bodySm, { color: colors.textTertiary }]}>Search first. Refine only when needed.</Text>
       </View>
 
       <Animated.View
@@ -282,7 +263,7 @@ export function BrowseScreen() {
           <Pressable
             onPress={() => setShowFilterSheet(true)}
             style={({ pressed }) => [
-              styles.filterBtn,
+              styles.refineBtn,
               {
                 backgroundColor: activeFilters.length > 0 ? colors.primary + '16' : colors.inputBackground,
                 borderColor: activeFilters.length > 0 ? colors.primary : colors.border,
@@ -291,53 +272,33 @@ export function BrowseScreen() {
             ]}
           >
             <SlidersHorizontal
-              size={18}
+              size={16}
               color={activeFilters.length > 0 ? colors.primary : colors.textTertiary}
               strokeWidth={2}
             />
+            <Text
+              style={[
+                typePresets.labelSm,
+                { color: activeFilters.length > 0 ? colors.primary : colors.textSecondary },
+              ]}
+            >
+              Refine
+            </Text>
           </Pressable>
         </View>
 
-        {activeFilters.length > 0 ? (
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={styles.activeFiltersScroll}
-            contentContainerStyle={styles.activeFiltersRow}
-          >
-            {activeFilters.map((filter) => (
-              <View
-                key={filter}
-                style={[styles.activeFilterPill, { backgroundColor: colors.primary + '10', borderColor: colors.primary + '30' }]}
-              >
-                <Text style={[typePresets.labelSm, { color: colors.primary }]}>{filter}</Text>
-              </View>
-            ))}
+        <View style={styles.controlsMeta}>
+          <Text style={[typePresets.bodySm, { color: colors.textTertiary }]}>
+            {filteredArticles.length} articles found
+          </Text>
+          {activeRefineCount > 0 ? (
             <Pressable onPress={handleResetFilters} style={({ pressed }) => [styles.resetLink, pressed && styles.pressed]}>
-              <Text style={[typePresets.labelSm, { color: colors.textSecondary }]}>Reset</Text>
+              <Text style={[typePresets.labelSm, { color: colors.primary }]}>
+                {activeRefineCount} active {activeRefineCount === 1 ? 'refinement' : 'refinements'} • Reset
+              </Text>
             </Pressable>
-          </ScrollView>
-        ) : null}
-
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.filterScroll}
-          contentContainerStyle={styles.filterRow}
-        >
-          {FILTER_SOURCES.map((source) => (
-            <Chip
-              key={source}
-              label={source}
-              selected={selectedSource === source}
-              onPress={() => setSelectedSource(source)}
-            />
-          ))}
-        </ScrollView>
-
-        <Text style={[typePresets.bodySm, { color: colors.textTertiary, paddingHorizontal: spacing.base, marginBottom: spacing.sm }]}>
-          {filteredArticles.length} articles found{searchType !== 'All' ? ` | ${searchType.toLowerCase()} search` : ''}
-        </Text>
+          ) : null}
+        </View>
       </Animated.View>
 
       {/* Article List */}
@@ -364,8 +325,8 @@ export function BrowseScreen() {
 
       <BottomSheetModal
         visible={showFilterSheet}
-        title="Browse Filters"
-        description="Refine scope, sentiment, tags, and time window without leaving the feed."
+        title="Refine Browse"
+        description="Adjust scope, source, sentiment, layout, tags, and time window without crowding the feed."
         onClose={() => setShowFilterSheet(false)}
         footer={(
           <View style={styles.sheetFooter}>
@@ -375,6 +336,50 @@ export function BrowseScreen() {
         )}
       >
         <View style={styles.sheetSection}>
+          <Text style={[typePresets.labelXs, { color: colors.primary }]}>LAYOUT</Text>
+          <View style={styles.layoutOptionRow}>
+            <Pressable
+              onPress={() => switchViewMode('expanded')}
+              style={({ pressed }) => [
+                styles.layoutOption,
+                {
+                  backgroundColor: viewMode === 'expanded' ? colors.primary + '12' : colors.surface,
+                  borderColor: viewMode === 'expanded' ? colors.primary : colors.border,
+                },
+                pressed && styles.pressed,
+              ]}
+            >
+              <View style={styles.layoutOptionLabel}>
+                <LayoutGrid size={16} color={viewMode === 'expanded' ? colors.primary : colors.textTertiary} strokeWidth={2} />
+                <Text style={[typePresets.body, { color: viewMode === 'expanded' ? colors.primary : colors.textSecondary }]}>
+                  Expanded
+                </Text>
+              </View>
+              <Text style={[typePresets.bodySm, { color: colors.textTertiary }]}>More context per story</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => switchViewMode('compact')}
+              style={({ pressed }) => [
+                styles.layoutOption,
+                {
+                  backgroundColor: viewMode === 'compact' ? colors.primary + '12' : colors.surface,
+                  borderColor: viewMode === 'compact' ? colors.primary : colors.border,
+                },
+                pressed && styles.pressed,
+              ]}
+            >
+              <View style={styles.layoutOptionLabel}>
+                <List size={16} color={viewMode === 'compact' ? colors.primary : colors.textTertiary} strokeWidth={2} />
+                <Text style={[typePresets.body, { color: viewMode === 'compact' ? colors.primary : colors.textSecondary }]}>
+                  Compact
+                </Text>
+              </View>
+              <Text style={[typePresets.bodySm, { color: colors.textTertiary }]}>Faster scanning</Text>
+            </Pressable>
+          </View>
+        </View>
+
+        <View style={styles.sheetSection}>
           <Text style={[typePresets.labelXs, { color: colors.primary }]}>SEARCH SCOPE</Text>
           <View style={styles.sheetChipWrap}>
             {SEARCH_TYPES.map((type) => (
@@ -383,6 +388,20 @@ export function BrowseScreen() {
                 label={type}
                 selected={searchType === type}
                 onPress={() => setSearchType(type)}
+              />
+            ))}
+          </View>
+        </View>
+
+        <View style={styles.sheetSection}>
+          <Text style={[typePresets.labelXs, { color: colors.primary }]}>SOURCES</Text>
+          <View style={styles.sheetChipWrap}>
+            {FILTER_SOURCES.map((source) => (
+              <Chip
+                key={source}
+                label={source}
+                selected={selectedSource === source}
+                onPress={() => setSelectedSource(source)}
               />
             ))}
           </View>
@@ -482,18 +501,6 @@ const styles = StyleSheet.create({
     paddingTop: spacing.base,
     paddingBottom: spacing.sm,
   },
-  viewToggle: {
-    flexDirection: 'row',
-    gap: spacing.xs,
-  },
-  toggleBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    borderCurve: 'continuous',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   searchRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -510,36 +517,47 @@ const styles = StyleSheet.create({
   searchBarWrapper: {
     flex: 1,
   },
-  filterBtn: {
-    width: 44,
+  refineBtn: {
+    minWidth: 96,
     height: 44,
     borderRadius: radius.md,
     borderCurve: 'continuous',
     borderWidth: 1,
+    paddingHorizontal: spacing.md,
+    flexDirection: 'row',
+    gap: spacing.xs,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  activeFiltersScroll: {
-    flexGrow: 0,
-    marginBottom: spacing.sm,
-  },
-  activeFiltersRow: {
-    paddingHorizontal: spacing.base,
+  controlsMeta: {
+    flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
-  },
-  activeFilterPill: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs + 2,
-    borderRadius: radius.full,
-    borderWidth: 1,
-    borderCurve: 'continuous',
+    justifyContent: 'space-between',
+    gap: spacing.base,
+    paddingHorizontal: spacing.base,
+    marginBottom: spacing.sm,
   },
   resetLink: {
     paddingHorizontal: spacing.xs,
     paddingVertical: spacing.xs,
   },
   sheetSection: {
+    gap: spacing.sm,
+  },
+  layoutOptionRow: {
+    gap: spacing.sm,
+  },
+  layoutOption: {
+    paddingHorizontal: spacing.base,
+    paddingVertical: spacing.md,
+    borderRadius: radius.md,
+    borderCurve: 'continuous',
+    borderWidth: 1,
+    gap: spacing.xs,
+  },
+  layoutOptionLabel: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: spacing.sm,
   },
   sheetChipWrap: {
@@ -574,15 +592,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     gap: spacing.sm,
-  },
-  filterScroll: {
-    flexGrow: 0,
-    marginBottom: spacing.sm,
-  },
-  filterRow: {
-    paddingHorizontal: spacing.base,
-    gap: spacing.sm,
-    alignItems: 'center',
   },
   list: {
     paddingHorizontal: spacing.base,
