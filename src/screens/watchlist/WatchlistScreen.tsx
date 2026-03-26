@@ -136,13 +136,11 @@ export function WatchlistScreen() {
   }, [filteredItems, focusedItemId]);
 
   const handleItemPress = useCallback((item: WatchlistItem) => {
-    if (focusedItemId !== item.id) {
-      setFocusedItemId(item.id);
-      return;
-    }
-
     navigation.navigate('WatchlistDetail', { itemId: item.id, name: item.name });
-  }, [focusedItemId, navigation]);
+  }, [navigation]);
+  const handleFocusItem = useCallback((item: WatchlistItem) => {
+    setFocusedItemId(item.id);
+  }, []);
   const handleOpenAddSheet = useCallback(() => {
     setIsAddSheetOpen(true);
   }, []);
@@ -211,10 +209,12 @@ export function WatchlistScreen() {
       <WatchlistRow
         item={item}
         onPress={handleItemPress}
+        onActionPress={handleFocusItem}
+        actionLabel={focusedItem?.id === item.id ? 'Focused' : 'Focus'}
         selected={focusedItem?.id === item.id}
       />
     </SwipeableRow>
-  ), [deleteAction, focusedItem?.id, handleItemPress, shareAction]);
+  ), [deleteAction, focusedItem?.id, handleFocusItem, handleItemPress, shareAction]);
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -273,7 +273,7 @@ export function WatchlistScreen() {
             {focusedItem.name}
           </Text>
           <Text style={[typePresets.bodySm, { color: colors.textSecondary, marginTop: spacing.xs }]}>
-            Tap a row once to focus it. Tap the focused row again to open details. Summary and deep dive use the closest related article.
+            Rows now open details directly. Use the visible Focus action on any row to change the item used for summary, deep dive, and synthesis.
           </Text>
           <View style={styles.actionRow}>
             <Pressable
