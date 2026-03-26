@@ -1,9 +1,17 @@
-import React, { useState, useMemo, useCallback, useRef } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { View, Text, StyleSheet, LayoutAnimation, UIManager, Platform, Pressable, ScrollView } from 'react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import Animated, {
+  Extrapolation,
+  interpolate,
+  runOnJS,
+  useAnimatedScrollHandler,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 import { TrendingUp, TrendingDown, Minus, LayoutGrid, List, SlidersHorizontal } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { FlashList, type FlashListRef } from '@shopify/flash-list';
+import { AnimatedFlashList } from '@shopify/flash-list';
 import { SearchBar } from '@/components/ui/SearchBar';
 import { Chip } from '@/components/ui/Chip';
 import { Button } from '@/components/ui/Button';
@@ -25,7 +33,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { TimeWindow } from '@/utils/timeWindow';
 import { isWithinTimeWindow } from '@/utils/timeWindow';
 
-type Nav = NativeStackNavigationProp<BrowseStackParamList, 'Browse'>;
+type Nav = NativeStackNavigationProp<BrowseStackParamList, 'BrowseHome'>;
 
 const FILTER_SOURCES = ['All', 'Reuters', 'Bloomberg', 'Financial Times', 'Alborsa News', 'Mubasher', 'TechCrunch'];
 const SEARCH_TYPES = ['All', 'Company', 'People', 'Sector', 'Market'] as const;
@@ -46,7 +54,7 @@ export function BrowseScreen() {
   const { colors } = useTheme();
   const navigation = useNavigation<Nav>();
   const insets = useSafeAreaInsets();
-  const { handleScroll } = useScrollDirection();
+  const { updateScrollDirection } = useScrollDirection();
   const [search, setSearch] = useState('');
   const [selectedSource, setSelectedSource] = useState('All');
   const [selectedSentiment, setSelectedSentiment] = useState('All');
@@ -56,14 +64,16 @@ export function BrowseScreen() {
   const [viewMode, setViewMode] = useState<'expanded' | 'compact'>('expanded');
   const [showFilterSheet, setShowFilterSheet] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const hasAnimated = useRef(false);
-  const listRef = useRef<FlashListRef<Article>>(null);
+  const [headerHeight, setHeaderHeight] = useState(0);
+  const [controlsHeight, setControlsHeight] = useState(0);
+  const [controlsInteractive, setControlsInteractive] = useState(true);
+  const controlsProgress = useSharedValue(0);
+  const controlsHidden = useSharedValue(false);
+  const lastOffset = useSharedValue(0);
 
   const switchViewMode = useCallback((mode: 'expanded' | 'compact') => {
     if (mode === viewMode) return;
 
-    listRef.current?.prepareForLayoutAnimationRender();
-    listRef.current?.clearLayoutCacheOnUpdate();
     LayoutAnimation.configureNext({
       duration: 250,
       create: {
@@ -86,7 +96,6 @@ export function BrowseScreen() {
   React.useEffect(() => {
     const timer = setTimeout(() => {
       setIsLoading(false);
-      setTimeout(() => { hasAnimated.current = true; }, 500);
     }, 600);
     return () => clearTimeout(timer);
   }, []);
@@ -156,9 +165,10 @@ export function BrowseScreen() {
   const listContentContainerStyle = useMemo(
     () => ({
       paddingHorizontal: spacing.base,
+      paddingTop: controlsHeight + spacing.sm,
       paddingBottom: insets.bottom + 90,
     }),
-    [insets.bottom],
+    [controlsHeight, insets.bottom],
   );
 
   const handleArticlePress = useCallback((article: Article) => {
@@ -181,26 +191,56 @@ export function BrowseScreen() {
   const bookmarkAction = useBookmarkAction(() => {});
   const shareAction = useShareAction(() => {});
 
-  const renderArticle = useCallback(({ item, index }: { item: Article; index: number }) => {
-    const entering = hasAnimated.current ? undefined : FadeInDown.delay(index * 40).springify();
-    return (
-      <Animated.View entering={entering}>
-        <SwipeableRow leftActions={[bookmarkAction]} rightActions={[shareAction]}>
-          <ArticleCard
-            article={item}
-            mode={viewMode}
-            onPress={handleArticlePress}
-            onLongPress={handleArticleLongPress}
-          />
-        </SwipeableRow>
-      </Animated.View>
-    );
-  }, [viewMode, handleArticlePress, handleArticleLongPress, bookmarkAction, shareAction]);
+  const controlsAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(controlsProgress.value, [0, 1], [1, 0], Extrapolation.CLAMP),
+    transform: [
+      { translateY: interpolate(controlsProgress.value, [0, 1], [0, -28], Extrapolation.CLAMP) },
+    ],
+  }));
+
+  const updateControlsInteractivity = useCallback((interactive: boolean) => {
+    setControlsInteractive(interactive);
+  }, []);
+
+  const handleListScroll = useAnimatedScrollHandler({
+    onScroll: (event) => {
+      const offsetY = event.contentOffset.y;
+      const delta = offsetY - lastOffset.value;
+
+      updateScrollDirection(offsetY);
+
+      if (delta > 4 && offsetY > 24 && !controlsHidden.value) {
+        controlsHidden.value = true;
+        runOnJS(updateControlsInteractivity)(false);
+        controlsProgress.value = withTiming(1, { duration: 180 });
+      } else if ((delta < -4 || offsetY <= 12) && controlsHidden.value) {
+        controlsHidden.value = false;
+        controlsProgress.value = withTiming(0, { duration: 180 }, (finished) => {
+          if (finished) {
+            runOnJS(updateControlsInteractivity)(true);
+          }
+        });
+      }
+
+      lastOffset.value = offsetY;
+    },
+  });
+
+  const renderArticle = useCallback(({ item }: { item: Article }) => (
+    <SwipeableRow leftActions={[bookmarkAction]} rightActions={[shareAction]}>
+      <ArticleCard
+        article={item}
+        mode={viewMode}
+        onPress={handleArticlePress}
+        onLongPress={handleArticleLongPress}
+      />
+    </SwipeableRow>
+  ), [viewMode, handleArticlePress, handleArticleLongPress, bookmarkAction, shareAction]);
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={styles.header} onLayout={(event) => setHeaderHeight(event.nativeEvent.layout.height)}>
         <Text style={[typePresets.h1, { color: colors.text }]}>Browse</Text>
         <View style={styles.viewToggle}>
           <Pressable
@@ -226,90 +266,96 @@ export function BrowseScreen() {
         </View>
       </View>
 
-      {/* Search + Advanced Filters */}
-      <View style={styles.searchRow}>
-        <View style={styles.searchBarWrapper}>
-          <SearchBar value={search} onChangeText={setSearch} placeholder="Search articles..." />
+      <Animated.View
+        pointerEvents={controlsInteractive ? 'auto' : 'none'}
+        onLayout={(event) => setControlsHeight(event.nativeEvent.layout.height)}
+        style={[
+          styles.controlsPanel,
+          { top: headerHeight, backgroundColor: colors.background },
+          controlsAnimatedStyle,
+        ]}
+      >
+        <View style={styles.searchRow}>
+          <View style={styles.searchBarWrapper}>
+            <SearchBar value={search} onChangeText={setSearch} placeholder="Search articles..." />
+          </View>
+          <Pressable
+            onPress={() => setShowFilterSheet(true)}
+            style={({ pressed }) => [
+              styles.filterBtn,
+              {
+                backgroundColor: activeFilters.length > 0 ? colors.primary + '16' : colors.inputBackground,
+                borderColor: activeFilters.length > 0 ? colors.primary : colors.border,
+              },
+              pressed && styles.pressed,
+            ]}
+          >
+            <SlidersHorizontal
+              size={18}
+              color={activeFilters.length > 0 ? colors.primary : colors.textTertiary}
+              strokeWidth={2}
+            />
+          </Pressable>
         </View>
-        <Pressable
-          onPress={() => setShowFilterSheet(true)}
-          style={({ pressed }) => [
-            styles.filterBtn,
-            {
-              backgroundColor: activeFilters.length > 0 ? colors.primary + '16' : colors.inputBackground,
-              borderColor: activeFilters.length > 0 ? colors.primary : colors.border,
-            },
-            pressed && styles.pressed,
-          ]}
-        >
-          <SlidersHorizontal
-            size={18}
-            color={activeFilters.length > 0 ? colors.primary : colors.textTertiary}
-            strokeWidth={2}
-          />
-        </Pressable>
-      </View>
 
-      {activeFilters.length > 0 ? (
+        {activeFilters.length > 0 ? (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.activeFiltersScroll}
+            contentContainerStyle={styles.activeFiltersRow}
+          >
+            {activeFilters.map((filter) => (
+              <View
+                key={filter}
+                style={[styles.activeFilterPill, { backgroundColor: colors.primary + '10', borderColor: colors.primary + '30' }]}
+              >
+                <Text style={[typePresets.labelSm, { color: colors.primary }]}>{filter}</Text>
+              </View>
+            ))}
+            <Pressable onPress={handleResetFilters} style={({ pressed }) => [styles.resetLink, pressed && styles.pressed]}>
+              <Text style={[typePresets.labelSm, { color: colors.textSecondary }]}>Reset</Text>
+            </Pressable>
+          </ScrollView>
+        ) : null}
+
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          style={styles.activeFiltersScroll}
-          contentContainerStyle={styles.activeFiltersRow}
+          style={styles.filterScroll}
+          contentContainerStyle={styles.filterRow}
         >
-          {activeFilters.map((filter) => (
-            <View
-              key={filter}
-              style={[styles.activeFilterPill, { backgroundColor: colors.primary + '10', borderColor: colors.primary + '30' }]}
-            >
-              <Text style={[typePresets.labelSm, { color: colors.primary }]}>{filter}</Text>
-            </View>
+          {FILTER_SOURCES.map((source) => (
+            <Chip
+              key={source}
+              label={source}
+              selected={selectedSource === source}
+              onPress={() => setSelectedSource(source)}
+            />
           ))}
-          <Pressable onPress={handleResetFilters} style={({ pressed }) => [styles.resetLink, pressed && styles.pressed]}>
-            <Text style={[typePresets.labelSm, { color: colors.textSecondary }]}>Reset</Text>
-          </Pressable>
         </ScrollView>
-      ) : null}
 
-      {/* Source filters */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.filterScroll}
-        contentContainerStyle={styles.filterRow}
-      >
-        {FILTER_SOURCES.map((source) => (
-          <Chip
-            key={source}
-            label={source}
-            selected={selectedSource === source}
-            onPress={() => setSelectedSource(source)}
-          />
-        ))}
-      </ScrollView>
-
-      {/* Results Count */}
-      <Text style={[typePresets.bodySm, { color: colors.textTertiary, paddingHorizontal: spacing.base, marginBottom: spacing.sm }]}>
-        {filteredArticles.length} articles found{searchType !== 'All' ? ` · ${searchType.toLowerCase()} search` : ''}
-      </Text>
+        <Text style={[typePresets.bodySm, { color: colors.textTertiary, paddingHorizontal: spacing.base, marginBottom: spacing.sm }]}>
+          {filteredArticles.length} articles found{searchType !== 'All' ? ` | ${searchType.toLowerCase()} search` : ''}
+        </Text>
+      </Animated.View>
 
       {/* Article List */}
       {isLoading ? (
-        <View style={styles.list}>
+        <View style={[styles.list, { paddingTop: controlsHeight + spacing.sm }]}>
           {Array.from({ length: 5 }).map((_, i) => (
             <SkeletonArticle key={i} compact={viewMode === 'compact'} />
           ))}
         </View>
       ) : (
-        <FlashList
-          ref={listRef}
+        <AnimatedFlashList
           data={filteredArticles}
           extraData={viewMode}
           keyExtractor={(item) => item.id}
           renderItem={renderArticle}
           contentContainerStyle={listContentContainerStyle}
           showsVerticalScrollIndicator={false}
-          onScroll={handleScroll}
+          onScroll={handleListScroll}
           scrollEventThrottle={16}
           refreshing={refreshing}
           onRefresh={onRefresh}
@@ -455,6 +501,12 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     marginBottom: spacing.sm,
   },
+  controlsPanel: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    zIndex: 2,
+  },
   searchBarWrapper: {
     flex: 1,
   },
@@ -535,7 +587,6 @@ const styles = StyleSheet.create({
   list: {
     paddingHorizontal: spacing.base,
   },
-  articleItem: {},
   pressed: {
     opacity: 0.8,
   },

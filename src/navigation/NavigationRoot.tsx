@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { View, Pressable, StyleSheet, Modal } from 'react-native';
 import {
   NavigationContainer,
@@ -17,6 +17,7 @@ import Animated, {
   useAnimatedReaction,
   interpolate,
   Extrapolation,
+  runOnJS,
 } from 'react-native-reanimated';
 import { MessageCircle } from 'lucide-react-native';
 import { ScrollDirectionProvider, useScrollDirection } from '@/hooks/useScrollDirection';
@@ -26,17 +27,15 @@ import { useChatStore } from '@/store/chatStore';
 import { lightTap } from '@/utils/haptics';
 import { AuthStack } from './AuthStack';
 import { MainTabs } from './MainTabs';
-import { SettingsScreen } from '@/screens/settings/SettingsScreen';
+import { AlertsStack } from './stacks/AlertsStack';
 import { SourcesScreen } from '@/screens/sources/SourcesScreen';
 import { UsersScreen } from '@/screens/users/UsersScreen';
-import { CompaniesScreen } from '@/screens/companies/CompaniesScreen';
-import { CompanyDetailScreen } from '@/screens/companies/CompanyDetailScreen';
-import { CompetitorAnalysisScreen } from '@/screens/companies/CompetitorAnalysisScreen';
 import { ChatScreen } from '@/screens/chat/ChatScreen';
 import type { RootStackParamList } from '@/types/navigation';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const navigationRef = createNavigationContainerRef<RootStackParamList>();
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 function getActiveRouteName(state: NavigationState | PartialState<NavigationState>): string {
   const route = state.routes[state.index ?? 0];
@@ -52,14 +51,29 @@ function getActiveRouteName(state: NavigationState | PartialState<NavigationStat
 function ChatFab({ onPress }: { onPress: () => void }) {
   const { colors } = useTheme();
   const { isScrollingDown } = useScrollDirection();
+  const [isInteractive, setIsInteractive] = useState(true);
   const fabScale = useSharedValue(1);
   const fabProgress = useSharedValue(0);
+  const handleFabInteractivityChange = useCallback((interactive: boolean) => {
+    setIsInteractive(interactive);
+  }, []);
 
   useAnimatedReaction(
     () => isScrollingDown.value,
     (down) => {
-      fabProgress.value = withTiming(down ? 1 : 0, { duration: 250 });
+      if (down) {
+        runOnJS(handleFabInteractivityChange)(false);
+        fabProgress.value = withTiming(1, { duration: 220 });
+        return;
+      }
+
+      fabProgress.value = withTiming(0, { duration: 220 }, (finished) => {
+        if (finished) {
+          runOnJS(handleFabInteractivityChange)(true);
+        }
+      });
     },
+    [handleFabInteractivityChange],
   );
 
   const fabAnimStyle = useAnimatedStyle(() => {
@@ -72,24 +86,20 @@ function ChatFab({ onPress }: { onPress: () => void }) {
   });
 
   return (
-    <Pressable
+    <AnimatedPressable
       onPress={() => { lightTap(); onPress(); }}
       onPressIn={() => { fabScale.value = withSpring(0.9, { damping: 12 }); }}
       onPressOut={() => { fabScale.value = withSpring(1, { damping: 12 }); }}
+      disabled={!isInteractive}
       accessibilityRole="button"
       accessibilityLabel="Open AI chat assistant"
-      style={styles.fabPressable}
+      style={[styles.fabPressable, fabAnimStyle]}
+      pointerEvents={isInteractive ? 'auto' : 'none'}
     >
-      <Animated.View
-        style={[
-          styles.fab,
-          fabAnimStyle,
-          { backgroundColor: colors.primary, ...shadows.glow },
-        ]}
-      >
+      <View style={[styles.fab, { backgroundColor: colors.primary, ...shadows.glow }]}>
         <MessageCircle size={24} color={colors.textInverse} strokeWidth={2} />
-      </Animated.View>
-    </Pressable>
+      </View>
+    </AnimatedPressable>
   );
 }
 
@@ -114,7 +124,19 @@ export function NavigationRoot() {
   };
 
   const showAuth = !isAuthenticated;
-  const hideChatFab = activeRouteName === 'ArticleDetail';
+  const hideChatFab = activeRouteName === 'ArticleDetail'
+    || activeRouteName === 'Settings'
+    || activeRouteName === 'SettingsTab'
+    || activeRouteName === 'Sources'
+    || activeRouteName === 'Users'
+    || activeRouteName === 'Alerts'
+    || activeRouteName === 'AlertDetail'
+    || activeRouteName === 'AlertTriggerDetail'
+    || activeRouteName === 'AlertTriggerSummary'
+    || activeRouteName === 'AlertTriggerDeepDive'
+    || activeRouteName === 'CrisisDetail'
+    || activeRouteName === 'CrisisSummary'
+    || activeRouteName === 'CrisisDeepDive';
 
   return (
     <ScrollDirectionProvider>
@@ -140,12 +162,9 @@ export function NavigationRoot() {
               <>
                 <Stack.Screen name="Main" component={MainTabs} />
                 <Stack.Group screenOptions={{ presentation: 'modal' }}>
-                  <Stack.Screen name="Settings" component={SettingsScreen} />
                   <Stack.Screen name="Sources" component={SourcesScreen} />
                   <Stack.Screen name="Users" component={UsersScreen} />
-                  <Stack.Screen name="Companies" component={CompaniesScreen} />
-                  <Stack.Screen name="CompanyDetail" component={CompanyDetailScreen} />
-                  <Stack.Screen name="CompetitorAnalysis" component={CompetitorAnalysisScreen} />
+                  <Stack.Screen name="Alerts" component={AlertsStack} />
                 </Stack.Group>
               </>
             )}

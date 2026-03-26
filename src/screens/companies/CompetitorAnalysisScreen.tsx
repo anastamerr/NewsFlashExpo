@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { ArrowLeft, ChevronRight, MessageCircle } from 'lucide-react-native';
@@ -18,10 +18,13 @@ import { MOCK_COMPANIES } from '@/constants/mockData';
 import { formatNumber } from '@/utils/format';
 import { getCompetitorWorkspace, type CompanyPeriod, type CompetitorMode } from '@/utils/companyIntelligence';
 import { useChatStore } from '@/store/chatStore';
-import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import type { RootStackParamList } from '@/types/navigation';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'CompetitorAnalysis'>;
+type Props = {
+  companyAId?: string;
+  companyBId?: string;
+  onBack?: () => void;
+  showHeader?: boolean;
+};
 type SelectorTarget = 'A' | 'B' | null;
 
 const PERIODS: CompanyPeriod[] = ['30d', '90d', 'YTD'];
@@ -95,18 +98,36 @@ function SignalSection({ title, items }: { title: string; items: string[] }) {
   );
 }
 
-export function CompetitorAnalysisScreen({ route, navigation }: Props) {
+export function CompetitorAnalysisScreen({
+  companyAId: propCompanyAId,
+  companyBId: propCompanyBId,
+  onBack,
+  showHeader = false,
+}: Props = {}) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const openChat = useChatStore((state) => state.openChat);
-  const defaultCompanyA = route.params?.companyAId ?? MOCK_COMPANIES[0]?.id;
-  const defaultCompanyB = route.params?.companyBId ?? MOCK_COMPANIES[1]?.id ?? MOCK_COMPANIES[0]?.id;
+  const defaultCompanyA = propCompanyAId ?? MOCK_COMPANIES[0]?.id;
+  const defaultCompanyB = propCompanyBId ?? MOCK_COMPANIES[1]?.id ?? MOCK_COMPANIES[0]?.id;
   const [companyAId, setCompanyAId] = useState(defaultCompanyA);
-  const [companyBId, setCompanyBId] = useState(defaultCompanyB === defaultCompanyA ? MOCK_COMPANIES[1]?.id ?? defaultCompanyA : defaultCompanyB);
+  const [companyBId, setCompanyBId] = useState(
+    defaultCompanyB === defaultCompanyA ? MOCK_COMPANIES[1]?.id ?? defaultCompanyA : defaultCompanyB,
+  );
   const [period, setPeriod] = useState<CompanyPeriod>('90d');
   const [mode, setMode] = useState<CompetitorMode>('market');
   const [selectorTarget, setSelectorTarget] = useState<SelectorTarget>(null);
   const [selectorQuery, setSelectorQuery] = useState('');
+
+  useEffect(() => {
+    const nextCompanyA = propCompanyAId ?? MOCK_COMPANIES[0]?.id;
+    const nextCompanyBBase = propCompanyBId ?? MOCK_COMPANIES[1]?.id ?? nextCompanyA;
+    const nextCompanyB = nextCompanyBBase === nextCompanyA
+      ? MOCK_COMPANIES.find((company) => company.id !== nextCompanyA)?.id ?? nextCompanyBBase
+      : nextCompanyBBase;
+
+    setCompanyAId(nextCompanyA);
+    setCompanyBId(nextCompanyB);
+  }, [propCompanyAId, propCompanyBId]);
 
   const companyA = useMemo(
     () => MOCK_COMPANIES.find((company) => company.id === companyAId) ?? MOCK_COMPANIES[0],
@@ -157,18 +178,20 @@ export function CompetitorAnalysisScreen({ route, navigation }: Props) {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]}>
-        <Pressable
-          onPress={() => navigation.goBack()}
-          style={({ pressed }) => [styles.headerBtn, pressed && styles.pressed]}
-          accessibilityRole="button"
-          accessibilityLabel="Go back"
-        >
-          <ArrowLeft size={22} color={colors.text} strokeWidth={2} />
-        </Pressable>
-        <Text style={[typePresets.h3, { color: colors.text }]}>Competitor Analysis</Text>
-        <View style={{ width: 40 }} />
-      </View>
+      {showHeader ? (
+        <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]}>
+          <Pressable
+            onPress={onBack}
+            style={({ pressed }) => [styles.headerBtn, pressed && styles.pressed]}
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
+          >
+            <ArrowLeft size={22} color={colors.text} strokeWidth={2} />
+          </Pressable>
+          <Text style={[typePresets.h3, { color: colors.text }]}>Competitor Analysis</Text>
+          <View style={styles.headerSpacer} />
+        </View>
+      ) : null}
 
       <ScrollView
         contentInsetAdjustmentBehavior="automatic"
@@ -350,7 +373,7 @@ export function CompetitorAnalysisScreen({ route, navigation }: Props) {
               <View style={styles.sheetOptionCopy}>
                 <Text style={[typePresets.h3, { color: colors.text }]}>{company.name}</Text>
                 <Text style={[typePresets.bodySm, { color: colors.textSecondary, marginTop: spacing.xxs }]}>
-                  {company.ticker} · {company.sector}
+                  {company.ticker} | {company.sector}
                 </Text>
               </View>
               <ChevronRight size={16} color={colors.textTertiary} strokeWidth={2} />
@@ -376,6 +399,10 @@ const styles = StyleSheet.create({
     height: 40,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  headerSpacer: {
+    width: 40,
+    height: 40,
   },
   content: { paddingHorizontal: spacing.base },
   selectorRow: {

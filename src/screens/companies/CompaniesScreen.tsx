@@ -1,7 +1,6 @@
 import React, { memo, useState, useMemo, useCallback } from 'react';
 import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
-import { X, Building2, ArrowRightLeft } from 'lucide-react-native';
+import { Building2, ArrowRightLeft } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FlashList, type ListRenderItem } from '@shopify/flash-list';
 import { SearchBar } from '@/components/ui/SearchBar';
@@ -16,10 +15,11 @@ import { MOCK_COMPANIES } from '@/constants/mockData';
 import { formatNumber } from '@/utils/format';
 import { getCompanyDirectorySummary, getCompanySectors } from '@/utils/companyIntelligence';
 import type { Company } from '@/types/api';
-import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import type { RootStackParamList } from '@/types/navigation';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { ResearchStackParamList } from '@/types/navigation';
+import { useNavigation } from '@react-navigation/native';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'Companies'>;
+type Nav = NativeStackNavigationProp<ResearchStackParamList, 'ResearchHome'>;
 
 const CompanyCardItem = memo(function CompanyCardItem({
   item,
@@ -58,9 +58,10 @@ const CompanyCardItem = memo(function CompanyCardItem({
   );
 });
 
-export function CompaniesScreen({ navigation }: Props) {
+export function CompaniesScreen() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
+  const navigation = useNavigation<Nav>();
   const [search, setSearch] = useState('');
   const [sectorFilter, setSectorFilter] = useState('All');
   const debouncedSearch = useDebounce(search);
@@ -84,7 +85,7 @@ export function CompaniesScreen({ navigation }: Props) {
   const listContentContainerStyle = useMemo(
     () => ({
       paddingHorizontal: spacing.base - spacing.xs / 2,
-      paddingBottom: insets.bottom + spacing.xxl,
+      paddingBottom: Math.max(insets.bottom + spacing.xxl, 104),
     }),
     [insets.bottom],
   );
@@ -100,13 +101,11 @@ export function CompaniesScreen({ navigation }: Props) {
     });
   }, [filtered, navigation]);
 
-  const renderCompany = useCallback<ListRenderItem<Company>>(({ item, index }) => {
-    return (
-      <Animated.View entering={FadeInDown.delay(index * 60).springify()} style={styles.cardWrapper}>
-        <CompanyCardItem item={item} onPressCompany={handleCompanyPress} />
-      </Animated.View>
-    );
-  }, [handleCompanyPress]);
+  const renderCompany = useCallback<ListRenderItem<Company>>(({ item }) => (
+    <View style={styles.cardWrapper}>
+      <CompanyCardItem item={item} onPressCompany={handleCompanyPress} />
+    </View>
+  ), [handleCompanyPress]);
 
   const listHeader = useMemo(() => (
     <View style={styles.headerContent}>
@@ -172,17 +171,9 @@ export function CompaniesScreen({ navigation }: Props) {
   ), [colors.borderSubtle, colors.primary, colors.text, colors.textSecondary, colors.textTertiary, handleOpenCompare, search, sectorFilter, sectors, summary.avgCoverage, summary.dominantSector, summary.positiveLeaders, summary.totalCompanies]);
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={styles.header}>
         <Text style={[typePresets.h1, { color: colors.text }]}>Companies</Text>
-        <Pressable
-          onPress={() => navigation.goBack()}
-          style={({ pressed }) => [styles.closeBtn, pressed && styles.pressed]}
-          accessibilityRole="button"
-          accessibilityLabel="Close"
-        >
-          <X size={22} color={colors.textSecondary} strokeWidth={2} />
-        </Pressable>
       </View>
 
       <FlashList

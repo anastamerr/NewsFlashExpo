@@ -17,15 +17,19 @@ import { ArticleCard } from '@/components/lists/ArticleCard';
 import { formatNumber, formatSentiment } from '@/utils/format';
 import { getCompanyDetailWorkspace } from '@/utils/companyIntelligence';
 import { useChatStore } from '@/store/chatStore';
-import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import type { RootStackParamList } from '@/types/navigation';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackScreenProps, NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { ResearchStackParamList, RootStackParamList, TodayStackParamList } from '@/types/navigation';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'CompanyDetail'>;
+type Props =
+  | NativeStackScreenProps<ResearchStackParamList, 'CompanyDetail'>
+  | NativeStackScreenProps<TodayStackParamList, 'CompanyDetail'>;
 
 export function CompanyDetailScreen({ route, navigation }: Props) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const openChat = useChatStore((state) => state.openChat);
+  const rootNavigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const company = useMemo(
     () => MOCK_COMPANIES.find((item) => item.id === route.params.companyId) ?? MOCK_COMPANIES[0],
     [route.params.companyId],
@@ -34,25 +38,31 @@ export function CompanyDetailScreen({ route, navigation }: Props) {
   const sentimentVariant = company.sentiment === 'positive' ? 'success' : company.sentiment === 'negative' ? 'danger' : 'warning';
 
   const handleOpenArticle = useCallback((articleId: string) => {
-    navigation.navigate('Main', {
+    rootNavigation.navigate('Main', {
       screen: 'TodayTab',
       params: {
         screen: 'ArticleDetail',
         params: { articleId },
       },
     });
-  }, [navigation]);
+  }, [rootNavigation]);
 
   const handleAskAboutCompany = useCallback(() => {
     openChat(`Give me a concise intelligence brief on ${company.name} (${company.ticker}), including sentiment drivers, current risks, and watch items.`);
   }, [company.name, company.ticker, openChat]);
 
   const handleComparePeers = useCallback(() => {
-    navigation.navigate('CompetitorAnalysis', {
-      companyAId: company.id,
-      companyBId: workspace.peerCompanies[0]?.id,
+    rootNavigation.navigate('Main', {
+      screen: 'ResearchTab',
+      params: {
+        screen: 'CompetitorAnalysis',
+        params: {
+          companyAId: company.id,
+          companyBId: workspace.peerCompanies[0]?.id,
+        },
+      },
     });
-  }, [company.id, navigation, workspace.peerCompanies]);
+  }, [company.id, rootNavigation, workspace.peerCompanies]);
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -208,7 +218,13 @@ export function CompanyDetailScreen({ route, navigation }: Props) {
                 <Chip
                   key={peer.id}
                   label={peer.ticker}
-                  onPress={() => navigation.navigate('CompetitorAnalysis', { companyAId: company.id, companyBId: peer.id })}
+                  onPress={() => rootNavigation.navigate('Main', {
+                    screen: 'ResearchTab',
+                    params: {
+                      screen: 'CompetitorAnalysis',
+                      params: { companyAId: company.id, companyBId: peer.id },
+                    },
+                  })}
                 />
               ))}
             </View>

@@ -9,7 +9,7 @@ import Animated, {
   useSharedValue,
 } from 'react-native-reanimated';
 import {
-  X, Bell, Radio, Users, Info, LogOut,
+  Bell, Radio, Users, Info, LogOut,
   ChevronRight, Sun, Moon, Monitor, Shield, UserRound,
 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -31,10 +31,9 @@ import {
   type SeverityFilter,
 } from '@/utils/adminPersistence';
 import { successNotification } from '@/utils/haptics';
-import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '@/types/navigation';
-
-type Props = NativeStackScreenProps<RootStackParamList, 'Settings'>;
 type AccountDraft = Pick<AdminSettings, 'profileName' | 'profileEmail' | 'persona' | 'timezone' | 'language'>;
 
 const PERSONA_OPTIONS = ['Asset Manager', 'Research Analyst', 'Executive', 'Risk Officer'];
@@ -100,7 +99,8 @@ function buildDefaultSettings(user: ReturnType<typeof useAuthStore.getState>['us
   };
 }
 
-export function SettingsScreen({ navigation }: Props) {
+export function SettingsScreen() {
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { colors, mode, setMode } = useTheme();
   const insets = useSafeAreaInsets();
   const user = useAuthStore((state) => state.user);
@@ -249,14 +249,6 @@ export function SettingsScreen({ navigation }: Props) {
         <Animated.Text style={[typePresets.h3, styles.headerTitle, { color: colors.text }, headerTitleStyle]}>
           Settings
         </Animated.Text>
-        <Pressable
-          onPress={() => navigation.goBack()}
-          style={({ pressed }) => [styles.closeBtn, pressed && styles.pressed]}
-          accessibilityRole="button"
-          accessibilityLabel="Close settings"
-        >
-          <X size={22} color={colors.textSecondary} strokeWidth={2} />
-        </Pressable>
       </View>
 
       <Animated.ScrollView

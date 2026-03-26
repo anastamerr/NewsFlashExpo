@@ -20,14 +20,12 @@ import type {
   BrowseStackParamList,
   ReportSummaryParams,
   TodayStackParamList,
-  WatchlistStackParamList,
 } from '@/types/navigation';
 import { useChatStore } from '@/store/chatStore';
 
 type ReportDeepDiveNavigationParamList =
   TodayStackParamList
-  & BrowseStackParamList
-  & WatchlistStackParamList;
+  & BrowseStackParamList;
 
 export function SummaryScreen() {
   const { colors } = useTheme();

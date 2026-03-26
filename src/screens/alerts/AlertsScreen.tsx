@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-import { Plus } from 'lucide-react-native';
+import { Plus, X } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FlashList } from '@shopify/flash-list';
 import { AlertRow } from '@/components/lists/AlertRow';
@@ -83,6 +83,7 @@ export function AlertsScreen({ navigation }: Props) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const { handleScroll } = useScrollDirection();
+  const parentNavigation = navigation.getParent();
   const [alerts, setAlerts] = useState<ManagedAlert[]>(MOCK_ALERTS);
   const [activeFilter, setActiveFilter] = useState<AlertFilter>('All');
   const [activeTypeFilter, setActiveTypeFilter] = useState<AlertTypeFilter>('all');
@@ -235,24 +236,38 @@ export function AlertsScreen({ navigation }: Props) {
   return (
     <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}>
       <View style={styles.header}>
-        <View>
+        <View style={styles.headerTitle}>
           <Text style={[typePresets.h1, { color: colors.text }]}>Alerts</Text>
           <Text style={[typePresets.bodySm, { color: colors.textTertiary, marginTop: 2 }]}>
             {activeCount} active{criticalCount > 0 ? ` | ${criticalCount} critical` : ''}
           </Text>
         </View>
-        <Pressable
-          onPress={() => setSheetVisible(true)}
-          style={({ pressed }) => [
-            styles.addBtn,
-            { backgroundColor: colors.primary },
-            pressed && styles.pressed,
-          ]}
-          accessibilityRole="button"
-          accessibilityLabel="Create alert"
-        >
-          <Plus size={20} color={colors.textInverse} strokeWidth={2.5} />
-        </Pressable>
+        <View style={styles.headerActions}>
+          <Pressable
+            onPress={() => setSheetVisible(true)}
+            style={({ pressed }) => [
+              styles.addBtn,
+              { backgroundColor: colors.primary },
+              pressed && styles.pressed,
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel="Create alert"
+          >
+            <Plus size={20} color={colors.textInverse} strokeWidth={2.5} />
+          </Pressable>
+          <Pressable
+            onPress={() => parentNavigation?.goBack()}
+            style={({ pressed }) => [
+              styles.dismissBtn,
+              { backgroundColor: colors.surface, borderColor: colors.border },
+              pressed && styles.pressed,
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel="Close alerts"
+          >
+            <X size={18} color={colors.textSecondary} strokeWidth={2.2} />
+          </Pressable>
+        </View>
       </View>
 
       <View style={styles.controls}>
@@ -408,11 +423,27 @@ const styles = StyleSheet.create({
     paddingTop: spacing.base,
     paddingBottom: spacing.sm,
   },
+  headerTitle: {
+    flex: 1,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
   addBtn: {
     width: 36,
     height: 36,
     borderRadius: 10,
     borderCurve: 'continuous',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dismissBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    borderCurve: 'continuous',
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },

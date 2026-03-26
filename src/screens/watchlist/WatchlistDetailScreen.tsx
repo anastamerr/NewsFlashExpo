@@ -14,9 +14,9 @@ import { useRefreshControl } from '@/hooks/useRefreshControl';
 import { MOCK_ARTICLES, MOCK_WATCHLIST } from '@/constants/mockData';
 import type { Article } from '@/types/api';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import type { WatchlistStackParamList } from '@/types/navigation';
+import type { BrowseStackParamList } from '@/types/navigation';
 
-type Props = NativeStackScreenProps<WatchlistStackParamList, 'WatchlistDetail'>;
+type Props = NativeStackScreenProps<BrowseStackParamList, 'WatchlistDetail'>;
 
 const SPARK_DATA = [2.1, 1.8, 2.5, 1.2, 3.1, 2.8, 3.5, 2.9, 3.2, 4.0];
 

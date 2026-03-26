@@ -1,7 +1,7 @@
 import React, { useCallback, useState } from 'react';
 import { View, Text, ScrollView, StyleSheet, Pressable, type DimensionValue } from 'react-native';
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
-import { Settings, AlertTriangle, TrendingUp, TrendingDown, Minus } from 'lucide-react-native';
+import { Bell, AlertTriangle, TrendingUp, TrendingDown, Minus } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import { ScreenContainer } from '@/components/layout/ScreenContainer';
 import { Section } from '@/components/layout/Section';
@@ -20,9 +20,10 @@ import { getSentimentLabel } from '@/utils/sentiment';
 import { formatNumber } from '@/utils/format';
 import type { Article } from '@/types/api';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import type { TodayStackParamList } from '@/types/navigation';
+import type { RootStackParamList, TodayStackParamList } from '@/types/navigation';
 
 type Nav = NativeStackNavigationProp<TodayStackParamList, 'Today'>;
+type RootNav = NativeStackNavigationProp<RootStackParamList>;
 type TopicTrend = (typeof MOCK_STATS.trendingTopics)[number]['trend'];
 
 const TOPIC_TREND_META: Record<TopicTrend, { label: string; Icon: typeof TrendingUp }> = {
@@ -38,7 +39,7 @@ function buildTopicPrompt(topic: string) {
 export function TodayScreen() {
   const { colors } = useTheme();
   const navigation = useNavigation<Nav>();
-  const rootNav = useNavigation<any>();
+  const rootNav = useNavigation<RootNav>();
   const user = useAuthStore((s) => s.user);
   const openChat = useChatStore((s) => s.openChat);
   const [isLoading, setIsLoading] = useState(true);
@@ -70,12 +71,9 @@ export function TodayScreen() {
       return;
     }
 
-    rootNav.navigate('Main', {
-      screen: 'AlertsTab',
-      params: {
-        screen: 'CrisisDetail',
-        params: { crisisId: activeCrisis.id },
-      },
+    rootNav.navigate('Alerts', {
+      screen: 'CrisisDetail',
+      params: { crisisId: activeCrisis.id },
     });
   }, [criticalAlerts, rootNav]);
 
@@ -163,14 +161,14 @@ export function TodayScreen() {
           </Text>
         </View>
         <Pressable
-          onPress={() => rootNav.navigate('Settings')}
+          onPress={() => rootNav.navigate('Alerts', { screen: 'Alerts' })}
           style={({ pressed }) => [
             styles.settingsBtn,
             { backgroundColor: colors.surface },
             pressed && styles.pressed,
           ]}
         >
-          <Settings size={20} color={colors.textSecondary} strokeWidth={1.8} />
+          <Bell size={20} color={colors.textSecondary} strokeWidth={1.8} />
         </Pressable>
       </Animated.View>
 
@@ -248,7 +246,13 @@ export function TodayScreen() {
 
       {/* Top Stories */}
       <Animated.View entering={FadeInDown.delay(400).springify()}>
-        <Section title="Top Stories" onSeeAll={() => rootNav.navigate('Main', { screen: 'BrowseTab' })}>
+        <Section
+          title="Top Stories"
+          onSeeAll={() => rootNav.navigate('Main', {
+            screen: 'BrowseTab',
+            params: { screen: 'BrowseHome' },
+          })}
+        >
           {MOCK_ARTICLES.slice(0, 5).map((article, index) => (
             <Animated.View key={article.id} entering={FadeInDown.delay(450 + index * 60).springify()}>
               <ArticleCard
@@ -389,14 +393,29 @@ export function TodayScreen() {
 
       {/* Watchlist Highlights */}
       <Animated.View entering={FadeInDown.delay(700).springify()}>
-        <Section title="Watchlist Highlights" onSeeAll={() => rootNav.navigate('Main', { screen: 'WatchlistTab' })}>
+        <Section
+          title="Watchlist Highlights"
+          onSeeAll={() => rootNav.navigate('Main', {
+            screen: 'BrowseTab',
+            params: {
+              screen: 'BrowseHome',
+              params: { initialTab: 'Watchlist' },
+            },
+          })}
+        >
           {MOCK_WATCHLIST.slice(0, 4).map((item, index) => {
             const label = getSentimentLabel(item.sentiment ?? 0);
             const sparkColor = label === 'positive' ? colors.sentimentPositive : label === 'negative' ? colors.sentimentNegative : colors.primary;
             return (
               <Animated.View key={item.id} entering={FadeInDown.delay(750 + index * 50).springify()}>
                 <Pressable
-                  onPress={() => rootNav.navigate('Main', { screen: 'WatchlistTab' })}
+                  onPress={() => rootNav.navigate('Main', {
+                    screen: 'BrowseTab',
+                    params: {
+                      screen: 'WatchlistDetail',
+                      params: { itemId: item.id, name: item.name },
+                    },
+                  })}
                   accessibilityRole="button"
                   accessibilityLabel={`${item.name}, sentiment ${label}`}
                   style={({ pressed }) => [

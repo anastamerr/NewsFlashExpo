@@ -35,6 +35,10 @@ export type MarketSynthesisParams = {
   timeWindow?: TimeWindow;
 };
 
+export type BrowseHomeParams = {
+  initialTab?: 'Browse' | 'Watchlist';
+};
+
 // ---------------------------------------------------------------------------
 // Stack param lists
 // ---------------------------------------------------------------------------
@@ -42,12 +46,9 @@ export type MarketSynthesisParams = {
 export type RootStackParamList = {
   Auth: NavigatorScreenParams<AuthStackParamList>;
   Main: NavigatorScreenParams<MainTabParamList>;
-  Settings: undefined;
   Sources: undefined;
   Users: undefined;
-  Companies: undefined;
-  CompanyDetail: { companyId: string };
-  CompetitorAnalysis: { companyAId?: string; companyBId?: string } | undefined;
+  Alerts: NavigatorScreenParams<AlertsStackParamList> | undefined;
 };
 
 export type AuthStackParamList = {
@@ -64,9 +65,9 @@ export type AuthStackParamList = {
 export type MainTabParamList = {
   TodayTab: NavigatorScreenParams<TodayStackParamList>;
   BrowseTab: NavigatorScreenParams<BrowseStackParamList>;
-  WatchlistTab: NavigatorScreenParams<WatchlistStackParamList>;
+  ResearchTab: NavigatorScreenParams<ResearchStackParamList>;
   DashboardsTab: NavigatorScreenParams<DashboardsStackParamList>;
-  AlertsTab: NavigatorScreenParams<AlertsStackParamList>;
+  SettingsTab: NavigatorScreenParams<SettingsStackParamList>;
 };
 
 export type TodayStackParamList = {
@@ -78,19 +79,20 @@ export type TodayStackParamList = {
 };
 
 export type BrowseStackParamList = {
-  Browse: undefined;
+  BrowseHome: BrowseHomeParams | undefined;
   ArticleDetail: { articleId: string };
   BrowseSummary: ReportSummaryParams;
   BrowseDeepDive: ReportDeepDiveParams;
-};
-
-export type WatchlistStackParamList = {
-  Watchlist: undefined;
   WatchlistDetail: { itemId: string; name: string };
-  ArticleDetail: { articleId: string };
   WatchlistSummary: ReportSummaryParams;
   WatchlistDeepDive: ReportDeepDiveParams;
   MarketSynthesis: MarketSynthesisParams;
+};
+
+export type ResearchStackParamList = {
+  ResearchHome: undefined;
+  CompanyDetail: { companyId: string };
+  CompetitorAnalysis: { companyAId?: string; companyBId?: string } | undefined;
 };
 
 export type DashboardsStackParamList = {
@@ -102,6 +104,10 @@ export type DashboardsStackParamList = {
   CrisisDetail: CrisisReportParams;
   CrisisSummary: CrisisReportParams;
   CrisisDeepDive: CrisisReportParams;
+};
+
+export type SettingsStackParamList = {
+  Settings: undefined;
 };
 
 export type AlertsStackParamList = {

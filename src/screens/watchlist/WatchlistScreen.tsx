@@ -1,6 +1,5 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Plus, Heart } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FlashList } from '@shopify/flash-list';
@@ -23,11 +22,11 @@ import { SkeletonWatchlistRow } from '@/components/ui/Skeleton';
 import { findBestArticleForWatchlistItem } from '@/utils/watchlist';
 import type { WatchlistItem } from '@/types/api';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import type { WatchlistStackParamList } from '@/types/navigation';
+import type { BrowseStackParamList } from '@/types/navigation';
 import { useNavigation } from '@react-navigation/native';
 import type { TimeWindow } from '@/utils/timeWindow';
 
-type Nav = NativeStackNavigationProp<WatchlistStackParamList, 'Watchlist'>;
+type Nav = NativeStackNavigationProp<BrowseStackParamList, 'BrowseHome'>;
 
 const FILTER_TYPES = ['All', 'Companies', 'Sectors', 'Markets', 'People'] as const;
 const FILTER_OPTIONS: OptionPickerItem[] = [
@@ -123,12 +122,27 @@ export function WatchlistScreen() {
     [insets.bottom],
   );
 
+  useEffect(() => {
+    if (filteredItems.length === 0) {
+      if (focusedItemId !== null) {
+        setFocusedItemId(null);
+      }
+      return;
+    }
+
+    if (!filteredItems.some((item) => item.id === focusedItemId)) {
+      setFocusedItemId(filteredItems[0].id);
+    }
+  }, [filteredItems, focusedItemId]);
+
   const handleItemPress = useCallback((item: WatchlistItem) => {
+    if (focusedItemId !== item.id) {
+      setFocusedItemId(item.id);
+      return;
+    }
+
     navigation.navigate('WatchlistDetail', { itemId: item.id, name: item.name });
-  }, [navigation]);
-  const handleItemLongPress = useCallback((item: WatchlistItem) => {
-    setFocusedItemId(item.id);
-  }, []);
+  }, [focusedItemId, navigation]);
   const handleOpenAddSheet = useCallback(() => {
     setIsAddSheetOpen(true);
   }, []);
@@ -192,21 +206,18 @@ export function WatchlistScreen() {
   const deleteAction = useDeleteAction(() => {});
   const shareAction = useShareAction(() => {});
 
-  const renderItem = useCallback(({ item, index }: { item: WatchlistItem; index: number }) => (
-    <Animated.View entering={FadeInDown.delay(index * 60).springify()}>
-      <SwipeableRow rightActions={[shareAction, deleteAction]}>
-        <WatchlistRow
-          item={item}
-          onPress={handleItemPress}
-          onLongPress={handleItemLongPress}
-          selected={focusedItem?.id === item.id}
-        />
-      </SwipeableRow>
-    </Animated.View>
-  ), [deleteAction, focusedItem?.id, handleItemLongPress, handleItemPress, shareAction]);
+  const renderItem = useCallback(({ item }: { item: WatchlistItem }) => (
+    <SwipeableRow rightActions={[shareAction, deleteAction]}>
+      <WatchlistRow
+        item={item}
+        onPress={handleItemPress}
+        selected={focusedItem?.id === item.id}
+      />
+    </SwipeableRow>
+  ), [deleteAction, focusedItem?.id, handleItemPress, shareAction]);
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={styles.header}>
         <Text style={[typePresets.h1, { color: colors.text }]}>Watchlist</Text>
         <Pressable
@@ -262,7 +273,7 @@ export function WatchlistScreen() {
             {focusedItem.name}
           </Text>
           <Text style={[typePresets.bodySm, { color: colors.textSecondary, marginTop: spacing.xs }]}>
-            Long-press a row to refocus report actions. Summary and deep dive use the closest related article.
+            Tap a row once to focus it. Tap the focused row again to open details. Summary and deep dive use the closest related article.
           </Text>
           <View style={styles.actionRow}>
             <Pressable
