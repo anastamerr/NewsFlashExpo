@@ -268,12 +268,24 @@ export function WatchlistScreen() {
             },
           ]}
         >
-          <Text style={[typePresets.labelXs, { color: colors.primary }]}>FOCUSED ITEM</Text>
-          <Text style={[typePresets.h3, { color: colors.text, marginTop: spacing.xs }]} numberOfLines={1}>
-            {focusedItem.name}
-          </Text>
-          <Text style={[typePresets.bodySm, { color: colors.textSecondary, marginTop: spacing.xs }]}>
-            Rows now open details directly. Use the visible Focus action on any row to change the item used for summary, deep dive, and synthesis.
+          <View style={styles.focusHeader}>
+            <View style={styles.focusHeaderCopy}>
+              <Text style={[typePresets.labelXs, { color: colors.primary }]}>Focused Item</Text>
+              <Text style={[typePresets.h3, { color: colors.text, marginTop: spacing.xxs }]} numberOfLines={1}>
+                {focusedItem.name}
+              </Text>
+              <Text style={[typePresets.bodySm, { color: colors.textTertiary, marginTop: spacing.xxs }]} numberOfLines={1}>
+                {(focusedItem.articleCount ?? 0)} articles tracked in {reportWindow}
+              </Text>
+            </View>
+            <View style={[styles.focusBadge, { backgroundColor: colors.primary + '10', borderColor: colors.primary + '24' }]}>
+              <Text style={[typePresets.labelSm, { color: colors.primary }]}>Live Focus</Text>
+            </View>
+          </View>
+          <Text style={[typePresets.bodySm, styles.focusStatus, { color: colors.textSecondary }]} numberOfLines={1}>
+            {focusedArticle
+              ? 'Summary, deep dive, and synthesis use this focus.'
+              : 'Focus is set, but no related article is available yet.'}
           </Text>
           <View style={styles.actionRow}>
             <Pressable
@@ -462,20 +474,40 @@ const styles = StyleSheet.create({
   focusStrip: {
     marginHorizontal: spacing.base,
     marginBottom: spacing.base,
-    padding: spacing.base,
-    borderRadius: radius.lg,
+    paddingHorizontal: spacing.base,
+    paddingVertical: spacing.md,
+    borderRadius: radius.md,
     borderCurve: 'continuous',
     borderWidth: 1,
+  },
+  focusHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+  },
+  focusHeaderCopy: {
+    flex: 1,
+  },
+  focusBadge: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs + 1,
+    borderRadius: radius.full,
+    borderCurve: 'continuous',
+    borderWidth: 1,
+  },
+  focusStatus: {
+    marginTop: spacing.xs,
   },
   actionRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.sm,
-    marginTop: spacing.md,
+    marginTop: spacing.sm,
   },
   actionPill: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm + 1,
+    paddingHorizontal: spacing.sm + 2,
+    paddingVertical: spacing.xs + 4,
     borderRadius: radius.full,
     borderCurve: 'continuous',
     borderWidth: 1,
