@@ -3,15 +3,13 @@ import { View, Text, StyleSheet, LayoutAnimation, UIManager, Platform, Pressable
 import Animated, {
   Extrapolation,
   interpolate,
-  runOnJS,
-  useAnimatedScrollHandler,
   useAnimatedStyle,
   useSharedValue,
   withTiming,
 } from 'react-native-reanimated';
 import { TrendingUp, TrendingDown, Minus, LayoutGrid, List, SlidersHorizontal } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { AnimatedFlashList } from '@shopify/flash-list';
+import { FlashList } from '@shopify/flash-list';
 import { SearchBar } from '@/components/ui/SearchBar';
 import { Chip } from '@/components/ui/Chip';
 import { Button } from '@/components/ui/Button';
@@ -202,29 +200,24 @@ export function BrowseScreen() {
     setControlsInteractive(interactive);
   }, []);
 
-  const handleListScroll = useAnimatedScrollHandler({
-    onScroll: (event) => {
-      const offsetY = event.contentOffset.y;
-      const delta = offsetY - lastOffset.value;
+  const handleListScroll = useCallback((event: { nativeEvent: { contentOffset: { y: number } } }) => {
+    const offsetY = event.nativeEvent.contentOffset.y;
+    const delta = offsetY - lastOffset.value;
 
-      updateScrollDirection(offsetY);
+    updateScrollDirection(offsetY);
 
-      if (delta > 4 && offsetY > 24 && !controlsHidden.value) {
-        controlsHidden.value = true;
-        runOnJS(updateControlsInteractivity)(false);
-        controlsProgress.value = withTiming(1, { duration: 180 });
-      } else if ((delta < -4 || offsetY <= 12) && controlsHidden.value) {
-        controlsHidden.value = false;
-        controlsProgress.value = withTiming(0, { duration: 180 }, (finished) => {
-          if (finished) {
-            runOnJS(updateControlsInteractivity)(true);
-          }
-        });
-      }
+    if (delta > 4 && offsetY > 24 && !controlsHidden.value) {
+      controlsHidden.value = true;
+      updateControlsInteractivity(false);
+      controlsProgress.value = withTiming(1, { duration: 180 });
+    } else if ((delta < -4 || offsetY <= 12) && controlsHidden.value) {
+      controlsHidden.value = false;
+      controlsProgress.value = withTiming(0, { duration: 180 });
+      updateControlsInteractivity(true);
+    }
 
-      lastOffset.value = offsetY;
-    },
-  });
+    lastOffset.value = offsetY;
+  }, [controlsHidden, controlsProgress, lastOffset, updateControlsInteractivity, updateScrollDirection]);
 
   const renderArticle = useCallback(({ item }: { item: Article }) => (
     <SwipeableRow leftActions={[bookmarkAction]} rightActions={[shareAction]}>
@@ -348,7 +341,7 @@ export function BrowseScreen() {
           ))}
         </View>
       ) : (
-        <AnimatedFlashList
+        <FlashList
           data={filteredArticles}
           extraData={viewMode}
           keyExtractor={(item) => item.id}
