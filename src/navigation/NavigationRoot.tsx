@@ -124,19 +124,7 @@ export function NavigationRoot() {
   };
 
   const showAuth = !isAuthenticated;
-  const hideChatFab = activeRouteName === 'ArticleDetail'
-    || activeRouteName === 'Settings'
-    || activeRouteName === 'SettingsTab'
-    || activeRouteName === 'Sources'
-    || activeRouteName === 'Users'
-    || activeRouteName === 'Alerts'
-    || activeRouteName === 'AlertDetail'
-    || activeRouteName === 'AlertTriggerDetail'
-    || activeRouteName === 'AlertTriggerSummary'
-    || activeRouteName === 'AlertTriggerDeepDive'
-    || activeRouteName === 'CrisisDetail'
-    || activeRouteName === 'CrisisSummary'
-    || activeRouteName === 'CrisisDeepDive';
+  const showChatFab = activeRouteName === 'Today';
 
   return (
     <ScrollDirectionProvider>
@@ -171,7 +159,7 @@ export function NavigationRoot() {
           </Stack.Navigator>
 
           {/* Chat FAB */}
-          {isAuthenticated && !chatVisible && !hideChatFab && (
+          {isAuthenticated && !chatVisible && showChatFab && (
             <ChatFab onPress={openChat} />
           )}
 
